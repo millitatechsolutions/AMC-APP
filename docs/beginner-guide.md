@@ -44,6 +44,8 @@ Start with the selector labelled **Demo workspace** at the top of the screen:
 - **UBL Branch 0005 Reviewer (AMC):** review the out-of-warranty visit for branch 0005.
 - **PowerVision Management:** see that vendor's visits and payment statement.
 
+Both PowerVision workspaces also have **Inventory**. Add your stock items or receive stock there. In the technician FSR's **Issue / Job Management** step, choose used materials and enter quantities. Submitting deducts stock and stores the material record; saving a draft does not. UBL and PowerVision see those material details in the report. [Inventory walkthrough](inventory-management.md).
+
 The cloud instance may contain previously submitted demo examples at branch 0005. The download starts with fresh synthetic records, so that you can try the entire process yourself.
 
 ## Try a complete example

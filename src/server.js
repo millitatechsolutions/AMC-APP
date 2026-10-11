@@ -31,6 +31,8 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
     const user=session.user;
     if(technicianRequest&&user.role!=='technician')return json(res,403,{error:'Technician access required'});
     if(path==='/api/session'&&req.method==='DELETE'){sessions.delete(token);res.setHeader('Set-Cookie',`${cookieName}=; HttpOnly; SameSite=Strict; Path=${technicianRequest?'/api/technician':'/'}; Max-Age=0`);return json(res,200,{signedOut:true});}
+    if(path==='/api/inventory/items'&&req.method==='POST')return json(res,201,store.createInventoryItem(user,await body(req)));
+    if(path==='/api/inventory/receipts'&&req.method==='POST')return json(res,201,store.receiveInventory(user,await body(req)));
     const draftPath=path.match(/^\/api\/visits\/([^/]+)\/draft$/);
     if(draftPath&&req.method==='GET')return json(res,200,store.draft(user,decodeURIComponent(draftPath[1])));
     if(draftPath&&req.method==='POST')return json(res,200,store.saveDraft(user,decodeURIComponent(draftPath[1]),await body(req)));
@@ -43,6 +45,8 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
      if(history)return json(res,200,store.history(user,decodeURIComponent(history[1])));
      if(path==='/api/me')return json(res,200,user);
      if(path==='/api/fields')return json(res,200,fields);
+     if(path==='/api/inventory'&&req.method==='GET')return json(res,200,store.inventory(user));
+     if(path==='/api/inventory/catalogue'&&req.method==='GET')return json(res,200,store.inventoryCatalogue(user));
      if(path==='/api/map-config')return json(res,200,{googleMapsKey:process.env.GOOGLE_MAPS_BROWSER_KEY??'',mapId:process.env.GOOGLE_MAPS_MAP_ID??''});
      if(path==='/api/visits')return json(res,200,store.visible(user).map(v=>url.searchParams.get('summary')==='1'?{...v,fsr:v.fsr?{fsrNumber:v.fsr.fsrNumber,submittedAt:v.fsr.submittedAt}:null}:v));
      const visitDetail=path.match(/^\/api\/visits\/([^/]+)$/);

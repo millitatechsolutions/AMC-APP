@@ -12,6 +12,8 @@ The technician submits one Field Service Report to the shared database. **UBL He
 
 Reports include the entire 75-entry FSR dictionary: server-computed identifiers and scheduling, service purpose, generator/engine details, running hours, maintenance checks, electrical phase readings, battery/charger checks, filter and oil details, cooling system, issues, actions and the stamped-FSR/before/after photographs. Conditional fields that do not apply remain visibly empty or labelled accordingly rather than being invented.
 
+The **Tracked parts & materials** section also shows the submitted inventory items, SKUs, quantities and units. Both offices see the same usage, including when an older revision is selected. Company stock balances and receipts remain in the company-only [Inventory screen](inventory-management.md).
+
 The report also shows the asset and branch, client/company, assigned technician and employee ID, recorded first visit-start time, submission time, current branch decision/reason/reviewer, and immutable submitted revisions. Old reports without an explicit visit-start event show that the time was not recorded. Their duration is not guessed. Corrected reports retain the original FSR reference and produce a new stored revision.
 
 ## Access and counting

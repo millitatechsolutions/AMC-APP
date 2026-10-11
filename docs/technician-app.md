@@ -46,6 +46,7 @@ Technician app requests are under `/api/technician/` and use an `amc_technician_
 | GET | /api/technician/visits?summary=1 | Lightweight assigned-visit list |
 | GET | /api/technician/assets | Assigned asset details |
 | GET | /api/technician/fields | Shared mandatory FSR dictionary |
+| GET | /api/technician/inventory/catalogue | Active PowerVision stock items and current availability |
 | GET | /api/technician/visits/:id | Full authorized visit/report |
 | GET | /api/technician/visits/:id/report | Complete report, technician identity, company/client, submitted revisions and activity |
 | POST | /api/technician/visits/:id/start | Idempotent first visit-start timestamp |
@@ -54,6 +55,8 @@ Technician app requests are under `/api/technician/` and use an `amc_technician_
 | POST | /api/technician/visits/:id/submit | Complete FSR; all validation enforced |
 
 The new table is created additively at server startup; existing assets, visits and evidence are preserved. Back up/preserve the whole `data` folder with the app stopped when upgrading from a GitHub ZIP.
+
+In the Issue / Job Management step, structured **Parts & material used** selection is saved with the draft as `values.inventoryUsage`. It is sent on submission as an array of `{itemId, quantity}`. The server resolves item labels/units and applies stock deductions atomically with the report. [Inventory guide and correction rules](inventory-management.md).
 
 ## Verified
 

@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fields, validateFields } from './fields.js';
+import { createInventory } from './inventory.js';
 export const COMPANY_NAME='PowerVision Systems Pvt Ltd';
 const vendorName=name=>name==='Demo AMC Services'?COMPANY_NAME:name;
 const assetClient=asset=>asset?.client || (/^DEMO-ENGINE-\d+$/.test(String(asset?.engineSerial??''))?'UBL':'');
@@ -64,12 +65,17 @@ export function createStore(path) {
      run('INSERT INTO visits VALUES(?,?,?,?,?)',visit.id,asset.id,month,visit.status,JSON.stringify(visit));
    }
  });
+ const stock=createInventory(db,{companyName:COMPANY_NAME});
  const save=visit=>run('UPDATE visits SET status=?,payload=? WHERE id=?',visit.status,JSON.stringify(visit),visit.id);
  const visible=user=>read('visits').filter(v=>accessible(user,v)).map(present);
  const get=(user,id)=>{const v=read('visits').find(v=>v.id===id);if(!v)fail('Visit not found',404);if(!accessible(user,v))fail('Access denied',403);return present(v);};
  const history=(user,id)=>{get(user,id);return db.prepare('SELECT id,payload FROM fsr_versions WHERE visit_id=? ORDER BY id').all(id).map(r=>({revision:r.id,fsr:JSON.parse(r.payload)}));};
  const payments=(user,month)=>{if(!['ho','vendor'].includes(user.role))fail('Access denied',403);return visible(user).filter(v=>v.month===month).map(v=>({visitId:v.id,fsrId:v.fsr?.fsrNumber??'',branchCode:v.branchCode,assetId:v.assetId,vendor:v.vendor,month:v.month,warranty:v.warranty,status:v.status,eligible:v.status==='acknowledged' && v.warranty==='OOW',rate:v.rate,payable:v.status==='acknowledged' && v.warranty==='OOW'?v.rate:0,acknowledgedBy:v.acknowledgement?.userId??'',acknowledgedAt:v.acknowledgement?.at??''}));};
  return {db,visible,get,payments,assets:user=>{const assignedIds=new Set(visible(user).map(v=>v.assetId));return read('assets').filter(a=>assignedIds.has(a.id)).map(presentAsset);},
+   inventory:user=>stock.inventory(user),
+   inventoryCatalogue:user=>stock.catalogue(user),
+   createInventoryItem:(user,input)=>stock.createItem(user,input),
+   receiveInventory:(user,input)=>stock.receive(user,input),
    report(user,id) {
     const visit=get(user,id),asset=presentAsset(read('assets').find(a=>a.id===visit.assetId));
     const identity=users.find(u=>u.id===(visit.fsr?.technicianId??visit.technicianId));
@@ -94,7 +100,10 @@ export function createStore(path) {
     if(!v.startedAt)fail('Start the visit before saving an FSR draft',409);
     if(!input || !input.values || typeof input.values!=='object' || Array.isArray(input.values) || !Number.isInteger(input.revision) || input.revision<0)fail('Invalid draft',422);
     const allowed=new Set(fields.filter(f=>f.type!=='auto').map(f=>f.key));
-    const values={};for(const [key,value] of Object.entries(input.values)){if(!allowed.has(key))fail('Unknown draft field: '+key,422);if(typeof value!=='string' && typeof value!=='number')fail('Invalid draft value: '+key,422);values[key]=value;}
+    const values={};for(const [key,value] of Object.entries(input.values)){
+     if(key==='inventoryUsage'){values[key]=stock.normalizeUsage(value).map(line=>({itemId:line.itemId,quantity:line.quantity}));continue;}
+     if(!allowed.has(key))fail('Unknown draft field: '+key,422);if(typeof value!=='string' && typeof value!=='number')fail('Invalid draft value: '+key,422);values[key]=value;
+    }
     const errors=validateFields(values,{partial:true});if(errors.length)fail(errors.join('; '),422);
     const old=db.prepare('SELECT revision FROM technician_drafts WHERE visit_id=? AND user_id=?').get(id,user.id);
     if(input.revision!==(old?.revision??0))fail('This draft changed in another window. Reopen the visit to load the latest saved draft.',409);
@@ -105,14 +114,19 @@ export function createStore(path) {
    submit(user,id,input) {return transaction(()=>{
     if(user.role!=='technician')fail('Only the assigned technician can submit',403);
     const v=get(user,id);if(!['scheduled','unacknowledged'].includes(v.status))fail('This visit cannot be submitted in its current state',409);
+    if(!input || typeof input!=='object' || Array.isArray(input))fail('Invalid FSR',422);
     const errors=validateFields(input);if(errors.length)fail(errors.join('; '),422);
     const a=read('assets').find(a=>a.id===v.assetId);
     if(Number(input.currentHours)<a.lastServiceHours)fail('Running hours cannot be below the last service reading',422);
     const stamp=new Date().toISOString(),day=stamp.slice(0,10);
     const sixMonthsAgo=new Date(stamp);sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth()-6);
     const fsr=Object.fromEntries(fields.filter(f=>f.type!=='auto').map(f=>[f.key,input[f.key]??'']));
+    // Old clients cannot accidentally return previously booked material by omitting the new field.
+    fsr.inventoryUsage=stock.normalizeUsage(Object.hasOwn(input,'inventoryUsage')?input.inventoryUsage:v.fsr?.inventoryUsage??[]);
     Object.assign(fsr,{branchCode:a.branchCode,siteAddress:a.siteAddress,region:a.region,vendor:vendorName(a.vendor),client:clientOf(v),company:COMPANY_NAME,customerId:`${a.branchCode}-${randomUUID()}`,month:v.month,visitDate:day,lastVisitDate:a.lastVisitDate,scheduleDate:v.dueDate,visitStatus:day>dateAdd(v.dueDate,5)?'Delayed':'On-Time',nextServiceDue:dateAdd(day,30),fsrNumber:v.fsr?.fsrNumber??`FSR-${randomUUID()}`,lastServiceDate:a.lastServiceDate,lastServiceHours:a.lastServiceHours,pmRequired:Number(input.currentHours)-a.lastServiceHours>=200 || new Date(a.lastServiceDate)<sixMonthsAgo?'Yes':'No',installationYear:a.installationYear,warranty:a.warranty,submittedAt:stamp,technicianId:user.id,technicianName:user.name,technicianEmployeeId:user.employeeId,visitStartedAt:v.startedAt??null});
     run('INSERT INTO fsr_versions(visit_id,payload) VALUES(?,?)',id,JSON.stringify(fsr));
+    const revision=Number(db.prepare('SELECT COUNT(*) AS count FROM fsr_versions WHERE visit_id=?').get(id).count);
+    stock.applyUsage(user,{visit:v,fsrNumber:fsr.fsrNumber,revision,previousUsage:v.fsr?.inventoryUsage??[],usage:fsr.inventoryUsage});
     run('DELETE FROM technician_drafts WHERE visit_id=?',id);
     v.fsr=fsr;v.status='submitted';v.acknowledgement=null;save(v);audit(user,'fsr.submitted',id,{fsrNumber:fsr.fsrNumber});return v;
    });},
@@ -125,7 +139,7 @@ export function createStore(path) {
     v.status=decision;v.acknowledgement={userId:user.id,employeeId:user.employeeId,at:new Date().toISOString(),decision,reason:String(reason??'').trim(),fsrId:v.fsr.fsrNumber};save(v);audit(user,`fsr.${decision}`,id,v.acknowledgement);return v;
    });},
    history,
-   audit(user) {const ids=new Set(visible(user).map(v=>v.id));return db.prepare('SELECT * FROM audit ORDER BY id DESC').all().filter(a=>ids.has(a.entity)).map(a=>({...a,detail:JSON.parse(a.detail)}));},
+   audit(user) {const ids=new Set(visible(user).map(v=>v.id)),manager=user.role==='ho'||user.role==='vendor'&&vendorName(user.vendor)===COMPANY_NAME;return db.prepare('SELECT * FROM audit ORDER BY id DESC').all().filter(a=>ids.has(a.entity)||manager&&a.action.startsWith('inventory.')).map(a=>({...a,detail:JSON.parse(a.detail)}));},
    close(){db.close();}
  };
 }

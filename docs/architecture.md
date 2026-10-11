@@ -22,6 +22,8 @@ No external database or remote service is required for the local maintenance wor
 | fsr_versions | id, visit_id, JSON payload | Immutable submission snapshots, including evidence and computed values |
 | technician_drafts | visit_id, user_id, payload, revision, updated_at | Assigned technician draft and optimistic-concurrency revision |
 | audit | id, actor, action, entity, at, detail | Append-only application action/decision history |
+| inventory_items | id, case-insensitive unique SKU, unit, quantity_milli, reorder_milli | PowerVision stock catalogue and balances in integer thousandths |
+| inventory_movements | id, item_id, signed quantity_milli, type, at, payload | Immutable opening, receipt and FSR consumption/correction ledger |
 
 FSR keys, groups, labels and checklist options are maintained in `src/fields.js`. Evidence is stored as bounded JPEG/PNG/WebP data URLs in JSON for this small local demo. Production must migrate to access-controlled object storage, validate/re-encode media, and use normalized typed PostgreSQL entities and migrations. SQLite synchronous access and embedded photos have not been fleet-scale load-tested.
 
@@ -54,6 +56,10 @@ All endpoints except health/demo-users/session creation require an HttpOnly loca
 | GET | /api/visits/:id/report | Scope-checked complete report, asset, technician identity, company/client labels, immutable revisions and activity |
 | GET | /api/map-config | Browser Maps key/map ID when configured; browser keys must have HTTP referrer/API restrictions |
 | GET | /api/assets | Scope-filtered asset register |
+| GET | /api/inventory | Company-manager catalogue and movement ledger |
+| GET | /api/inventory/catalogue | Company-manager or technician stock picker |
+| POST | /api/inventory/items | Company-manager creates SKU with optional opening quantity |
+| POST | /api/inventory/receipts | Company-manager receives positive stock with a required reference |
 | POST | /api/visits/:id/submit | FSR field object; technician only |
 | POST | /api/visits/:id/review | `{ "decision": "acknowledged" }` or `unacknowledged` with `reason`; branch only |
 | GET | /api/visits/:id/history | Scope-checked immutable FSR revision history |
@@ -62,6 +68,8 @@ All endpoints except health/demo-users/session creation require an HttpOnly loca
 | GET | /api/export.csv?month=YYYY-MM | Full authorized monthly payment statement, formula-safe CSV |
 
 Status codes: 400 malformed input, 401 missing/expired session, 403 role/scope denial, 404 unknown entity/endpoint, 409 invalid transition, 413 request too large, 422 missing or invalid FSR/reason. The service runs in UTC for record timestamps. Localization and Pakistan calendar business rules require an approved policy.
+
+`inventoryUsage` is an optional structured FSR/draft array of `{itemId, quantity}`. On submission the server resolves SKU/name/unit and stores them in each immutable FSR snapshot. The FSR revision, signed stock movements, balance changes, draft cleanup and visit update share one `BEGIN IMMEDIATE` transaction. Any failure rolls back all of them. Corrections compare the latest booked quantities against the replacement report and record only the difference. Inventory movements have SQL triggers preventing update/delete; insufficient stock cannot produce negative balances. Managers receive item/receipt audit events; client and technician audit views exclude those company stock events. See [Inventory management](inventory-management.md).
 
 `ubl-ho-demo` is a read-only `client_ho` identity restricted to client UBL. It cannot submit, review or access finance endpoints. Branch reviewers also match their client, even if another client uses the same branch code. Explicit visit/asset client contradictions are denied to client and branch identities. Only existing `DEMO-ENGINE-*` assets with no client receive the legacy UBL label; unknown real records do not. Previous synthetic `Demo AMC Services` vendor metadata is presented as PowerVision without rewriting immutable historical FSR snapshots. New submissions retain the technician name/employee ID, client and company as server-authored metadata.
 

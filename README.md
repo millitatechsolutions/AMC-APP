@@ -41,6 +41,7 @@ The 12 synthetic assets include four warranty and eight OOW assets. These are de
 - Server-computed identifiers, dates, delay status, PM flag and authoritative warranty/rates.
 - Atomic workflow transitions, persistent SQLite storage, FSR revision history and actor/timestamp audit entries.
 - Monthly visit-level payment report and CSV with FSR/acknowledgement traceability.
+- PowerVision inventory catalogue, opening stock, receipts, low-stock indicators and immutable FSR-linked material movements. Technician submissions deduct stock; corrections adjust only the quantity difference.
 - Functional tests covering validation, access isolation, rejection/resubmission, eligibility, duplicate review, audit, persistence and HTTP sessions.
 
 ## Demo security boundary
@@ -52,6 +53,8 @@ The workspace selector deliberately permits selecting any demo identity without 
 [Branch map, overview counting rules and optional Google Maps setup](docs/branch-map-and-overview.md).
 
 [Detailed reports shared between UBL and PowerVision](docs/shared-fsr-reports.md) explains all fields, photos, revision history and printing.
+
+[Inventory management and FSR material usage](docs/inventory-management.md) explains company stock controls and technician entry.
 
 ## Overview preview
 
