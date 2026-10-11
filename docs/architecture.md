@@ -10,7 +10,7 @@ flowchart LR
   A --> D[(SQLite: assets, visits, FSR revisions, audit)]
 ```
 
-No third-party runtime dependencies or remote services are required. Node 24 supplies HTTP, file I/O, UUIDs and SQLite. The frontend uses browser modules, semantic forms and CSS. This keeps the initial workflow runnable while platform and identity requirements are clarified. HTML/client data never supplies the authoritative rate, branch assignment or warranty classification.
+No third-party runtime dependencies or remote services are required for the default local demo; Google Maps is optional. Node 24 supplies HTTP, file I/O, UUIDs and SQLite. The frontend uses browser modules, semantic forms and CSS. This keeps the initial workflow runnable while platform and identity requirements are clarified. HTML/client data never supplies the authoritative rate, branch assignment or warranty classification.
 
 ## Data dictionary
 
@@ -47,7 +47,9 @@ All endpoints except health/demo-users/session creation require an HttpOnly loca
 | POST | /api/session | `{ "userId": "tech-demo" }` sets a demo session |
 | GET | /api/me | Current identity |
 | GET | /api/fields | Structured FSR schema |
-| GET | /api/visits | Scope-filtered visits with latest FSR |
+| GET | /api/visits | Scope-filtered visits with latest FSR; `?summary=1` omits image bodies for lightweight overview polling |
+| GET | /api/visits/:id | Scope-checked full visit/FSR detail |
+| GET | /api/map-config | Browser Maps key/map ID when configured; browser keys must have HTTP referrer/API restrictions |
 | GET | /api/assets | Scope-filtered asset register |
 | POST | /api/visits/:id/submit | FSR field object; technician only |
 | POST | /api/visits/:id/review | `{ "decision": "acknowledged" }` or `unacknowledged` with `reason`; branch only |
@@ -66,3 +68,5 @@ Status codes: 400 malformed input, 401 missing/expired session, 403 role/scope d
 - Worker/queue for schedule generation, configurable reminders, escalation and scheduled reporting.
 - Encrypted mobile offline storage with idempotent submission keys, versioned records and conflict handling; branch/payment decisions remain authoritative server-side.
 - Hosting location, TLS, secrets management, telemetry, immutable audit retention and DR chosen against UBL-approved security requirements.
+
+Overview counting, demo location provenance, and Google Maps setup are documented in [Branch map and overview](branch-map-and-overview.md).

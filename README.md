@@ -35,6 +35,7 @@ The 12 synthetic assets include four warranty and eight OOW assets. These are de
 ## Included
 
 - Responsive HO, technician and branch web interfaces with search, region/month/warranty/status filters, asset register and FSR detail.
+- Assigned UBL branch map beside AMC, warranty and total cards; each shows total/performed/remaining from technician submissions, with automatic checks every 15 seconds. Demo geographic map works offline; optional Google Maps browser-key connection is included.
 - Structured FSR schema corresponding to the section 12 table, including phase readings and conditional issue fields; required before/after/stamped-FSR images.
 - Assignment and branch access checks enforced server-side; vendor-scoped read access.
 - Server-computed identifiers, dates, delay status, PM flag and authoritative warranty/rates.
@@ -47,3 +48,9 @@ The 12 synthetic assets include four warranty and eight OOW assets. These are de
 The workspace selector deliberately permits selecting any demo identity without a password. It is **not production authentication**. The executable refuses non-loopback binding. Do not enter real customer or banking data, deploy publicly, or expose it through a tunnel. Session cookies are HttpOnly and SameSite; basic origin checks, CSP and role checks support local development but do not replace production identity/security review.
 
 [Requirements analysis and delivery roadmap](docs/requirements-analysis.md) explains ambiguities and remaining requirements. [Architecture and API](docs/architecture.md) describes the implemented structure and future production architecture.
+
+[Branch map, overview counting rules and optional Google Maps setup](docs/branch-map-and-overview.md).
+
+## Overview preview
+
+![Assigned branch map beside AMC, warranty and total service progress](docs/screenshots/overview.png)

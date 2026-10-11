@@ -33,6 +33,8 @@ The starter checks Node.js, runs the existing validation/tests, and chooses a fr
 
 ## Explore the screens
 
+The first screen now shows an assigned-branch map and three cards: **AMC**, **Warranty** and **Total**. Each card shows total, performed and remaining visits. Technician FSR submissions update these counts automatically within 15 seconds; use **Refresh now** for an immediate check. Select a branch pin to view its progress. Locations are illustrative demo locations. The map runs without a Google key; [optional Google Maps connection instructions](branch-map-and-overview.md) explain how to use Google Maps later.
+
 Start with the selector labelled **Demo workspace** at the top of the screen:
 
 - **HO Operations:** see all demo assets, visit progress, audit history and payment reconciliation.
@@ -78,3 +80,13 @@ You can also acknowledge a warranty visit at branch 0001: it still contributes *
 - `data`: your local demo database, created automatically. Do not delete or upload it.
 
 Keep this version for learning and demonstrations. Real user accounts, Android applications, offline use and bank-approved deployment are listed in `docs/requirements-analysis.md` as later milestones.
+
+## Get this update if you already downloaded an older version
+
+1. Stop the old app using Ctrl+C in its terminal window. Close all AMC terminal windows before copying database files.
+2. On GitHub, use Code → Download ZIP again, and extract the new version into a separate folder. Keep your old project folder as a backup.
+3. Before starting the new version for the first time, copy the entire `data` folder from your old project into the newly extracted project folder. This preserves your local demo visits and photos. If the new folder already has a `data` folder, keep both versions safely instead of overwriting either database; ask for help transferring records.
+4. If you already configured Google Maps, copy your local `.env` file separately into the new project folder; never upload it to GitHub.
+5. Double-click START-AMC.bat (Windows) or run bash start-amc.sh (macOS/Linux), then reload the browser.
+
+Node.js does not need to be installed again if version 24 or newer is already installed.

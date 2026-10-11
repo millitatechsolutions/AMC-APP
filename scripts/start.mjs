@@ -32,7 +32,7 @@ if (!process.env.PORT) {
     process.exit(1);
   }
 }
-const child = spawn(process.execPath, [fileURLToPath(new URL('../src/server.js', import.meta.url))], {
+const child = spawn(process.execPath, ['--env-file-if-exists=.env', fileURLToPath(new URL('../src/server.js', import.meta.url))], {
   cwd: projectDirectory, stdio: 'inherit', env: { ...process.env, HOST: '127.0.0.1', PORT: String(port) }
 });
 child.on('error', error => { console.error('Could not start the app:', error.message); process.exitCode = 1; });

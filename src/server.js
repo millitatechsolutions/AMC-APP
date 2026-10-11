@@ -12,7 +12,7 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
  const body=async req=>{let text='';for await (const chunk of req) {text+=chunk;if(Buffer.byteLength(text)>12*1024*1024)throw Object.assign(new Error('Request exceeds 12 MB'),{status:413});}try{return JSON.parse(text||'{}');}catch{throw Object.assign(new Error('Invalid JSON'),{status:400});}};
  const server=http.createServer(async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
-  res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+  res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   try {
    const url=new URL(req.url,'http://localhost'),path=url.pathname;
    if(path.startsWith('/api/')) {
@@ -31,7 +31,10 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
      if(history)return json(res,200,store.history(user,decodeURIComponent(history[1])));
      if(path==='/api/me')return json(res,200,user);
      if(path==='/api/fields')return json(res,200,fields);
-     if(path==='/api/visits')return json(res,200,store.visible(user));
+     if(path==='/api/map-config')return json(res,200,{googleMapsKey:process.env.GOOGLE_MAPS_BROWSER_KEY??'',mapId:process.env.GOOGLE_MAPS_MAP_ID??''});
+     if(path==='/api/visits')return json(res,200,store.visible(user).map(v=>url.searchParams.get('summary')==='1'?{...v,fsr:v.fsr?{fsrNumber:v.fsr.fsrNumber,submittedAt:v.fsr.submittedAt}:null}:v));
+     const visitDetail=path.match(/^\/api\/visits\/([^/]+)$/);
+     if(visitDetail)return json(res,200,store.get(user,decodeURIComponent(visitDetail[1])));
      if(path==='/api/assets')return json(res,200,store.assets(user));
      if(path==='/api/audit')return json(res,200,store.audit(user));
      if(path==='/api/payments')return json(res,200,store.payments(user,url.searchParams.get('month')));
@@ -47,9 +50,9 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
     return json(res,404,{error:'Endpoint not found'});
    }
    if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
-   const files={'/':'index.html','/app.js':'app.js','/styles.css':'styles.css'};
+   const files={'/':'index.html','/app.js':'app.js','/styles.css':'styles.css','/branch-map.js':'branch-map.js','/branch-map.geojson':'branch-map.geojson','/overview.js':'../shared/overview.js'};
    if(!files[path])return json(res,404,{error:'Not found'});
-   const data=await readFile(resolve(root,files[path]));res.writeHead(200,{'Content-Type':path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':'text/html'});res.end(data);
+   const data=await readFile(resolve(root,files[path]));res.writeHead(200,{'Content-Type':path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':path.endsWith('.geojson')?'application/geo+json':'text/html'});res.end(data);
   }catch(e){json(res,e.status??500,{error:e.status?e.message:'Internal server error'});if(!e.status)console.error(e.message);}
  });
  server.on('close',()=>store.close());return {server,store};

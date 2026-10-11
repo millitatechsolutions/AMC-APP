@@ -12,6 +12,17 @@ export const users=[
  {id:'vendor-demo',name:'Vendor Management',role:'vendor',vendor:'Demo AMC Services',employeeId:'DEMO-VENDOR'}
 ];
 export const dateAdd=(day,n)=>new Date(Date.parse(`${day}T00:00:00Z`)+n*86400000).toISOString().slice(0,10);
+// Approximate city locations for synthetic records only; these are not verified UBL branch coordinates.
+export function withBranchLocation(asset) {
+ if(typeof asset.latitude === 'number' && typeof asset.longitude === 'number') return asset;
+ const match=String(asset.engineSerial??'').match(/^DEMO-ENGINE-(\d+)$/);
+ if(!match) return asset;
+ const index=Number(match[1])-1;
+ const cities=[{latitude:24.8138,longitude:67.0290},{latitude:31.5105,longitude:74.3440},{latitude:33.7130,longitude:73.0620},{latitude:33.5910,longitude:73.0540}];
+ const location=cities[index%cities.length];
+ // Offset demo pins so multiple synthetic branches in one city remain selectable.
+ return {...asset,...location,latitude:location.latitude+Math.floor(index/4)*0.025,longitude:location.longitude+Math.floor(index/4)*0.03,locationSource:'Demo city location',client:'UBL'};
+}
 export function createStore(path) {
  if(path!==':memory:') mkdirSync(dirname(path),{recursive:true});
  const db=new DatabaseSync(path);
@@ -40,7 +51,7 @@ export function createStore(path) {
  const visible=user=>read('visits').filter(v=>accessible(user,v));
  const get=(user,id)=>{const v=read('visits').find(v=>v.id===id);if(!v)fail('Visit not found',404);if(!accessible(user,v))fail('Access denied',403);return v;};
  const payments=(user,month)=>{if(!['ho','vendor'].includes(user.role))fail('Access denied',403);return visible(user).filter(v=>v.month===month).map(v=>({visitId:v.id,fsrId:v.fsr?.fsrNumber??'',branchCode:v.branchCode,assetId:v.assetId,vendor:v.vendor,month:v.month,warranty:v.warranty,status:v.status,eligible:v.status==='acknowledged' && v.warranty==='OOW',rate:v.rate,payable:v.status==='acknowledged' && v.warranty==='OOW'?v.rate:0,acknowledgedBy:v.acknowledgement?.userId??'',acknowledgedAt:v.acknowledgement?.at??''}));};
- return {db,visible,get,payments,assets:user=>read('assets').filter(a=>visible(user).some(v=>v.assetId===a.id)),
+ return {db,visible,get,payments,assets:user=>{const assignedIds=new Set(visible(user).map(v=>v.assetId));return read('assets').filter(a=>assignedIds.has(a.id)).map(withBranchLocation);},
    submit(user,id,input) {return transaction(()=>{
     if(user.role!=='technician')fail('Only the assigned technician can submit',403);
     const v=get(user,id);if(!['scheduled','unacknowledged'].includes(v.status))fail('This visit cannot be submitted in its current state',409);
