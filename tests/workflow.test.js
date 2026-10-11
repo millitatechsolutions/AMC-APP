@@ -51,7 +51,7 @@ test('HTTP session, role enforcement, CSV export, static UI and functional submi
  const post=async(path,cookie,input)=>fetch(base+path,{method:'POST',headers:{cookie,'Content-Type':'application/json'},body:JSON.stringify(input)});
  try{
   assert.equal((await fetch(base+'/api/visits')).status,401);
-  assert.match(await (await fetch(base)).text(),/Genset AMC/);
+  assert.match(await (await fetch(base)).text(),/PowerVision Systems Pvt Ltd/);
   const tc=await login(tech.id),bc=await login(branch.id),hc=await login(ho.id);
   const visits=await(await fetch(base+'/api/visits',{headers:{cookie:tc}})).json(),visit=visits[0];
   assert.equal((await post(`/api/visits/${visit.id}/submit`,tc,completeFsr())).status,200);

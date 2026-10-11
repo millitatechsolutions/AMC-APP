@@ -1,6 +1,6 @@
 # Technician application
 
-A dedicated responsive technician web app is available at the `/technician/` path on the same running AMC server. The dashboard has a **Technician app ↗** link. It uses the shared database, assignments, FSR validation, client review and HO overview rather than a disconnected mock screen.
+A PowerVision Systems Pvt Ltd branded responsive technician web app is available at the `/technician/` path on the same running AMC server. The dashboard has a **Technician app ↗** link. It uses the shared database, assignments, FSR validation, client review and HO overview rather than a disconnected mock screen.
 
 ## Start and use it
 
@@ -12,7 +12,7 @@ A dedicated responsive technician web app is available at the `/technician/` pat
 6. Complete the FSR one section at a time. **Next** validates the current section and saves the draft. **Save draft** allows partial work. **Save & exit** saves before returning to assignments. Saved drafts survive browser/server restarts.
 7. Add before/after/stamped-FSR images using the camera/gallery control. Supported file types are JPEG, PNG and WebP, up to 2 MB each. The camera-picker behavior depends on the actual device/browser and was not tested on a physical Android phone.
 8. On **Review & submit**, check readings and photos, then submit. The API enforces all applicable mandatory fields again. A submitted report is read-only until a client rejects it and requests corrections.
-9. In the company/client dashboard, select the matching branch reviewer to acknowledge or reject. The technician sees that response in Reports (list checks every 30 seconds or on reload); HO overview checks new submissions every 15 seconds.
+9. In the company/client dashboard, select the matching branch reviewer to acknowledge or reject. The technician sees that response in Reports (list checks every 30 seconds or on reload); PowerVision and UBL head-office overviews check new submissions every 15 seconds. Both offices can open the same complete FSR in Reports, including all fields and photos.
 
 The technician app has its own scoped demo-session cookie. Opening it does not change the active HO/client demo identity in another dashboard tab. The current demo includes one technician account assigned to the 12 synthetic assets. Actual technician provisioning and assignment management remain future work.
 
@@ -47,6 +47,7 @@ Technician app requests are under `/api/technician/` and use an `amc_technician_
 | GET | /api/technician/assets | Assigned asset details |
 | GET | /api/technician/fields | Shared mandatory FSR dictionary |
 | GET | /api/technician/visits/:id | Full authorized visit/report |
+| GET | /api/technician/visits/:id/report | Complete report, technician identity, company/client, submitted revisions and activity |
 | POST | /api/technician/visits/:id/start | Idempotent first visit-start timestamp |
 | GET | /api/technician/visits/:id/draft | Latest technician's saved draft, or null |
 | POST | /api/technician/visits/:id/draft | `{ "values": { "visitPurpose": "AMC" }, "revision": 0 }` |

@@ -33,17 +33,18 @@ The starter checks Node.js, runs the existing validation/tests, and chooses a fr
 
 ## Explore the screens
 
-The first screen now shows an assigned-branch map and three cards: **AMC**, **Warranty** and **Total**. Each card shows total, performed and remaining visits. Technician FSR submissions update these counts automatically within 15 seconds; use **Refresh now** for an immediate check. Select a branch pin to view its progress. Locations are illustrative demo locations. The map runs without a Google key; [optional Google Maps connection instructions](branch-map-and-overview.md) explain how to use Google Maps later.
+The first screen now shows an assigned-branch map and three cards: **AMC**, **Warranty** and **Total**. Each card shows total, performed and remaining visits. Technician FSR submissions update these counts automatically within 15 seconds; use **Refresh now** for an immediate check. Select a branch pin to view its progress. Locations are illustrative demo locations. The satellite map uses Esri imagery without a Google key and requires internet. If imagery cannot load, a clearly labelled geographic fallback appears; [optional Google Maps connection instructions](branch-map-and-overview.md) explain how to use Google Maps later.
 
 Start with the selector labelled **Demo workspace** at the top of the screen:
 
-- **HO Operations:** see all demo assets, visit progress, audit history and payment reconciliation.
+- **PowerVision Head Office:** see all demo assets, visit progress, audit history and payment reconciliation.
+- **UBL Head Office:** see UBL branch progress and complete submitted FSR reports; this workspace is read-only.
 - **Assigned Technician:** complete an assigned visit's Field Service Report (FSR), including technical readings and three images.
-- **Branch 0001 Reviewer:** review the warranty visit for branch 0001.
-- **Branch 0005 Reviewer (OOW):** review the out-of-warranty visit for branch 0005.
-- **Vendor Management:** see that vendor's visits and payment statement.
+- **UBL Branch 0001 Reviewer:** review the warranty visit for branch 0001.
+- **UBL Branch 0005 Reviewer (AMC):** review the out-of-warranty visit for branch 0005.
+- **PowerVision Management:** see that vendor's visits and payment statement.
 
-The cloud instance contains one completed example at branch 0005. The download starts with fresh synthetic records, so that you can try the entire process yourself.
+The cloud instance may contain previously submitted demo examples at branch 0005. The download starts with fresh synthetic records, so that you can try the entire process yourself.
 
 ## Try a complete example
 
@@ -52,8 +53,8 @@ The cloud instance contains one completed example at branch 0005. The download s
 3. Fill in all applicable fields. These are fake records, so use example readings; the current running-hours value must be at least **1,000**. For an issue or repair that did not occur, write **None**. If you choose a complaint logged on Here4you, also enter a fake complaint reference. If the radiator condition is Average or Bad, fill in the corresponding explanation.
 4. Attach three JPEG, PNG or WebP images: before work, after work, and the stamped FSR. Each image must be at most 2 MB. For this demo use sample pictures containing no personal or bank information.
 5. Submit the FSR. It is now waiting for branch review.
-6. Select **Branch 0005 Reviewer (OOW)**. Open the visit and choose **Acknowledge**. To reject instead, enter a reason and choose **Unacknowledge**.
-7. Select **HO Operations**, then **Reconciliation**. An acknowledged branch 0005 visit contributes **PKR 3,500**. A pending or rejected visit contributes **PKR 0**.
+6. Select **UBL Branch 0005 Reviewer (AMC)**. Open the visit and choose **Acknowledge**. To reject instead, enter a reason and choose **Unacknowledge**.
+7. Select **PowerVision Head Office**, then **Reconciliation**. An acknowledged branch 0005 visit contributes **PKR 3,500**. A pending or rejected visit contributes **PKR 0**.
 8. Use **Export full month CSV** to download the statement. CSV opens in Excel or another spreadsheet app.
 
 You can also acknowledge a warranty visit at branch 0001: it still contributes **PKR 0**.
@@ -96,3 +97,7 @@ Node.js does not need to be installed again if version 24 or newer is already in
 After upgrading and restarting the app, click **Technician app ↗** at the top of the dashboard. It opens in a new tab. Click **Open technician demo**, then **Visits**. Open a branch, start the visit, and follow the FSR sections using **Next**. Use **Save draft** or **Save & exit** to continue later. Once submitted, the same report appears in the client/company dashboard. Opening the technician tab keeps your dashboard's client/HO account separate.
 
 You can try the phone-style layout on your computer. Actual phone access is not available from your computer's local-only demo server. This version has no Android APK; [the technician guide](technician-app.md) explains the delivered web app and remaining phone deployment steps.
+
+## Open complete FSR reports in both offices
+
+Select **PowerVision Head Office** or **UBL Head Office**, then **Reports**. Open a submitted FSR to see all technical fields, before/after/stamped-FSR photos, technician details, timestamps, branch decision and saved revisions. **Print report** opens the browser print dialog. Both workspaces use the same technician submission. [Detailed report guide](shared-fsr-reports.md).

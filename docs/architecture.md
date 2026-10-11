@@ -6,11 +6,12 @@
 flowchart LR
   T[Technician responsive web] --> A[Node.js HTTP API]
   B[Branch responsive web] --> A
-  H[HO / vendor responsive web] --> A
+  H[PowerVision company / management web] --> A
+  C[UBL head-office web] --> A
   A --> D[(SQLite: assets, visits, FSR revisions, audit)]
 ```
 
-No third-party runtime dependencies or remote services are required for the default local demo; Google Maps is optional. Node 24 supplies HTTP, file I/O, UUIDs and SQLite. The frontend uses browser modules, semantic forms and CSS. This keeps the initial workflow runnable while platform and identity requirements are clarified. HTML/client data never supplies the authoritative rate, branch assignment or warranty classification.
+No external database or remote service is required for the local maintenance workflow. Node 24 supplies HTTP, file I/O, UUIDs and SQLite. The frontend uses browser modules, semantic forms and CSS, plus locally vendored Leaflet 1.9.4 for internet-connected Esri satellite imagery. Google Maps is optional; the labelled geographic fallback works without imagery access. HTML/client data never supplies the authoritative rate, branch assignment or warranty classification.
 
 ## Data dictionary
 
@@ -50,6 +51,7 @@ All endpoints except health/demo-users/session creation require an HttpOnly loca
 | GET | /api/fields | Structured FSR schema |
 | GET | /api/visits | Scope-filtered visits with latest FSR; `?summary=1` omits image bodies for lightweight overview polling |
 | GET | /api/visits/:id | Scope-checked full visit/FSR detail |
+| GET | /api/visits/:id/report | Scope-checked complete report, asset, technician identity, company/client labels, immutable revisions and activity |
 | GET | /api/map-config | Browser Maps key/map ID when configured; browser keys must have HTTP referrer/API restrictions |
 | GET | /api/assets | Scope-filtered asset register |
 | POST | /api/visits/:id/submit | FSR field object; technician only |
@@ -60,6 +62,8 @@ All endpoints except health/demo-users/session creation require an HttpOnly loca
 | GET | /api/export.csv?month=YYYY-MM | Full authorized monthly payment statement, formula-safe CSV |
 
 Status codes: 400 malformed input, 401 missing/expired session, 403 role/scope denial, 404 unknown entity/endpoint, 409 invalid transition, 413 request too large, 422 missing or invalid FSR/reason. The service runs in UTC for record timestamps. Localization and Pakistan calendar business rules require an approved policy.
+
+`ubl-ho-demo` is a read-only `client_ho` identity restricted to client UBL. It cannot submit, review or access finance endpoints. Branch reviewers also match their client, even if another client uses the same branch code. Explicit visit/asset client contradictions are denied to client and branch identities. Only existing `DEMO-ENGINE-*` assets with no client receive the legacy UBL label; unknown real records do not. Previous synthetic `Demo AMC Services` vendor metadata is presented as PowerVision without rewriting immutable historical FSR snapshots. New submissions retain the technician name/employee ID, client and company as server-authored metadata.
 
 ## Proposed production architecture
 
