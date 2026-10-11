@@ -90,3 +90,9 @@ Keep this version for learning and demonstrations. Real user accounts, Android a
 5. Double-click START-AMC.bat (Windows) or run bash start-amc.sh (macOS/Linux), then reload the browser.
 
 Node.js does not need to be installed again if version 24 or newer is already installed.
+
+## Try the dedicated technician app
+
+After upgrading and restarting the app, click **Technician app ↗** at the top of the dashboard. It opens in a new tab. Click **Open technician demo**, then **Visits**. Open a branch, start the visit, and follow the FSR sections using **Next**. Use **Save draft** or **Save & exit** to continue later. Once submitted, the same report appears in the client/company dashboard. Opening the technician tab keeps your dashboard's client/HO account separate.
+
+You can try the phone-style layout on your computer. Actual phone access is not available from your computer's local-only demo server. This version has no Android APK; [the technician guide](technician-app.md) explains the delivered web app and remaining phone deployment steps.

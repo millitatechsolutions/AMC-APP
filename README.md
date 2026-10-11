@@ -54,3 +54,11 @@ The workspace selector deliberately permits selecting any demo identity without 
 ## Overview preview
 
 ![Assigned branch map beside AMC, warranty and total service progress](docs/screenshots/overview.png)
+
+## Technician app
+
+Use **Technician app ↗** on the dashboard to open the dedicated `/technician/` application. It includes assigned visits, visit start, a guided FSR, server-saved resumable drafts, camera/gallery uploads, submitted reports and client responses. [Technician app guide and limitations](docs/technician-app.md).
+
+This is a mobile-ready web app with installable shell metadata, not a native Android APK. A shared phone deployment still requires hosted HTTPS and production authentication; the local demo is loopback-only.
+
+![Technician application home](docs/screenshots/technician-home.png)

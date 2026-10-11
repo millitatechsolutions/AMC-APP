@@ -28,7 +28,7 @@ const groups = {
   'Additional visit evidence': [['beforePhoto','Before Maintenance Photograph','attachment'],['afterPhoto','After Maintenance Photograph','attachment'],['severity','Issue Severity',['None','Low','Medium','High','Critical']]]
 };
 export const fields = Object.entries(groups).flatMap(([group, rows]) => rows.map(([key,label,type])=>({key,label,type,group})));
-export function validateFields(input) {
+export function validateFields(input, {partial=false}={}) {
   const errors=[];
   for (const f of fields) {
     if (f.type==='auto') continue;
@@ -37,6 +37,7 @@ export function validateFields(input) {
     if(f.key==='radiatorBad') required=input.radiatorCondition==='Bad';
     if(f.key==='complaintNumber') required=input.complaintLogged==='Yes';
     const value=input[f.key];
+    if(partial && (value===undefined || value===null || value===''))continue;
     if(required && (value===undefined || value===null || String(value).trim()==='')) { errors.push(`${f.label} is required`); continue; }
     if(value!==undefined && value!=='' && f.type==='number' && (!Number.isFinite(Number(value)) || Number(value)<0)) errors.push(`${f.label} must be a non-negative number`);
     if(Array.isArray(f.type) && !f.type.includes(value)) errors.push(`${f.label} has an invalid selection`);

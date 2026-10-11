@@ -19,6 +19,7 @@ No third-party runtime dependencies or remote services are required for the defa
 | assets | id, JSON payload | Branch/region/vendor relation, engine/model, warranty, rate and legacy service baseline |
 | visits | id, asset_id, month, status, JSON payload; unique(asset_id, month) | Assigned synthetic monthly visit, due date, latest FSR and branch decision |
 | fsr_versions | id, visit_id, JSON payload | Immutable submission snapshots, including evidence and computed values |
+| technician_drafts | visit_id, user_id, payload, revision, updated_at | Assigned technician draft and optimistic-concurrency revision |
 | audit | id, actor, action, entity, at, detail | Append-only application action/decision history |
 
 FSR keys, groups, labels and checklist options are maintained in `src/fields.js`. Evidence is stored as bounded JPEG/PNG/WebP data URLs in JSON for this small local demo. Production must migrate to access-controlled object storage, validate/re-encode media, and use normalized typed PostgreSQL entities and migrations. SQLite synchronous access and embedded photos have not been fleet-scale load-tested.
@@ -70,3 +71,5 @@ Status codes: 400 malformed input, 401 missing/expired session, 403 role/scope d
 - Hosting location, TLS, secrets management, telemetry, immutable audit retention and DR chosen against UBL-approved security requirements.
 
 Overview counting, demo location provenance, and Google Maps setup are documented in [Branch map and overview](branch-map-and-overview.md).
+
+Dedicated technician app, isolated sessions and start/draft APIs: [Technician application](technician-app.md).

@@ -20,7 +20,7 @@ The theoretical maximum monthly visit charge at the stated rate is **PKR 5,250,0
 
 | Area | Current increment | Remaining delivery |
 |---|---|---|
-| Technician | Responsive assigned-visit form, required images, submission and rejected-report resubmission | Native Android, visit start/location consent, encrypted offline drafts and conflict-safe sync |
+| Technician | Dedicated mobile-ready web app, server visit start, guided FSR, persistent revision-checked drafts, required images, submission and correction/resubmission | Native Android, location consent, encrypted offline drafts and conflict-safe sync |
 | Branch | Branch-scoped FSR detail, photos, acknowledge/unacknowledge, reason and audit | Native Android, reminders, delegation and production user provisioning |
 | HO | Dashboard, filters, asset register, visit drill-down, warranty/OOW summaries | Import 2,200 assets, calendar, recurrence, configurable SLA and escalations, issue ageing |
 | FSR | Structured source-table fields, checklist choices, computed references/PM flag, evidence and revisions | Customer-approved dictionary, supplier master, stricter range/consistency rules, true PM-history updates |

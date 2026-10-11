@@ -14,18 +14,28 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   try {
-   const url=new URL(req.url,'http://localhost'),path=url.pathname;
+   const url=new URL(req.url,'http://localhost');let path=url.pathname;
+   const technicianRequest=path.startsWith('/api/technician/');
+   if(technicianRequest)path='/api/'+path.slice('/api/technician/'.length);
    if(path.startsWith('/api/')) {
     if(!['GET','HEAD'].includes(req.method) && req.headers.origin && req.headers.origin!==`http://${req.headers.host}`)return json(res,403,{error:'Origin denied'});
     if(path==='/api/health' && req.method==='GET')return json(res,200,{status:'ok',mode:'synthetic-demo'});
     if(path==='/api/demo-users' && req.method==='GET')return json(res,200,users);
     if(path==='/api/session' && req.method==='POST') {
-     const input=await body(req),user=users.find(u=>u.id===input.userId);if(!user)return json(res,400,{error:'Unknown demo user'});
-     const token=randomUUID();sessions.set(token,{user,expires:Date.now()+8*3600000});res.setHeader('Set-Cookie',`amc_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`);return json(res,200,user);
+     const input=await body(req),user=users.find(u=>u.id===input.userId);if(technicianRequest&&user?.role!=='technician')return json(res,403,{error:'Choose an assigned technician account'});if(!user)return json(res,400,{error:'Unknown demo user'});
+     const token=randomUUID();sessions.set(token,{user,expires:Date.now()+8*3600000});res.setHeader('Set-Cookie',`${technicianRequest?'amc_technician_session':'amc_session'}=${token}; HttpOnly; SameSite=Strict; Path=${technicianRequest?'/api/technician':'/'}; Max-Age=28800`);return json(res,200,user);
     }
-    const token=req.headers.cookie?.split(';').map(s=>s.trim()).find(s=>s.startsWith('amc_session='))?.slice(12),session=sessions.get(token);
+    const cookieName=technicianRequest?'amc_technician_session':'amc_session';
+    const token=req.headers.cookie?.split(';').map(s=>s.trim()).find(s=>s.startsWith(cookieName+'='))?.slice(cookieName.length+1),session=sessions.get(token);
     if(!session || session.expires<Date.now())return json(res,401,{error:'Select a demo workspace to continue'});
     const user=session.user;
+    if(technicianRequest&&user.role!=='technician')return json(res,403,{error:'Technician access required'});
+    if(path==='/api/session'&&req.method==='DELETE'){sessions.delete(token);res.setHeader('Set-Cookie',`${cookieName}=; HttpOnly; SameSite=Strict; Path=${technicianRequest?'/api/technician':'/'}; Max-Age=0`);return json(res,200,{signedOut:true});}
+    const draftPath=path.match(/^\/api\/visits\/([^/]+)\/draft$/);
+    if(draftPath&&req.method==='GET')return json(res,200,store.draft(user,decodeURIComponent(draftPath[1])));
+    if(draftPath&&req.method==='POST')return json(res,200,store.saveDraft(user,decodeURIComponent(draftPath[1]),await body(req)));
+    const startPath=path.match(/^\/api\/visits\/([^/]+)\/start$/);
+    if(startPath&&req.method==='POST'){await body(req);return json(res,200,store.start(user,decodeURIComponent(startPath[1])));}
     if(req.method==='GET') {
      const history=path.match(/^\/api\/visits\/([^/]+)\/history$/);
      if(history)return json(res,200,store.history(user,decodeURIComponent(history[1])));
@@ -50,9 +60,11 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
     return json(res,404,{error:'Endpoint not found'});
    }
    if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
-   const files={'/':'index.html','/app.js':'app.js','/styles.css':'styles.css','/branch-map.js':'branch-map.js','/branch-map.geojson':'branch-map.geojson','/overview.js':'../shared/overview.js'};
+   if(path==='/technician'){res.writeHead(308,{Location:'/technician/'});return res.end();}
+   const files={'/technician/':'technician/index.html','/technician/app.js':'technician/app.js','/technician/styles.css':'technician/styles.css','/technician/manifest.webmanifest':'technician/manifest.webmanifest','/technician/icon.svg':'technician/icon.svg','/technician/icon-192.png':'technician/icon-192.png','/technician/icon-512.png':'technician/icon-512.png','/technician/sw.js':'technician/sw.js','/':'index.html','/app.js':'app.js','/styles.css':'styles.css','/branch-map.js':'branch-map.js','/branch-map.geojson':'branch-map.geojson','/overview.js':'../shared/overview.js'};
    if(!files[path])return json(res,404,{error:'Not found'});
-   const data=await readFile(resolve(root,files[path]));res.writeHead(200,{'Content-Type':path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':path.endsWith('.geojson')?'application/geo+json':'text/html'});res.end(data);
+   if(path.startsWith('/technician/'))res.setHeader('Cache-Control','no-cache');
+   const data=await readFile(resolve(root,files[path]));res.writeHead(200,{'Content-Type':path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':path.endsWith('.geojson')?'application/geo+json':path.endsWith('.webmanifest')?'application/manifest+json':path.endsWith('.svg')?'image/svg+xml':path.endsWith('.png')?'image/png':'text/html'});res.end(data);
   }catch(e){json(res,e.status??500,{error:e.status?e.message:'Internal server error'});if(!e.status)console.error(e.message);}
  });
  server.on('close',()=>store.close());return {server,store};

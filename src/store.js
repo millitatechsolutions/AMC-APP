@@ -30,6 +30,7 @@ export function createStore(path) {
  CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS visits (id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id), month TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL, UNIQUE(asset_id,month));
  CREATE TABLE IF NOT EXISTS fsr_versions (id INTEGER PRIMARY KEY, visit_id TEXT NOT NULL REFERENCES visits(id), payload TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS technician_drafts (visit_id TEXT NOT NULL REFERENCES visits(id), user_id TEXT NOT NULL, payload TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(visit_id,user_id));
  CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, entity TEXT NOT NULL, at TEXT NOT NULL, detail TEXT NOT NULL);`);
  const run=(sql,...params)=>db.prepare(sql).run(...params);
  const read=(table)=>db.prepare(`SELECT payload FROM ${table}`).all().map(r=>JSON.parse(r.payload));
@@ -52,6 +53,31 @@ export function createStore(path) {
  const get=(user,id)=>{const v=read('visits').find(v=>v.id===id);if(!v)fail('Visit not found',404);if(!accessible(user,v))fail('Access denied',403);return v;};
  const payments=(user,month)=>{if(!['ho','vendor'].includes(user.role))fail('Access denied',403);return visible(user).filter(v=>v.month===month).map(v=>({visitId:v.id,fsrId:v.fsr?.fsrNumber??'',branchCode:v.branchCode,assetId:v.assetId,vendor:v.vendor,month:v.month,warranty:v.warranty,status:v.status,eligible:v.status==='acknowledged' && v.warranty==='OOW',rate:v.rate,payable:v.status==='acknowledged' && v.warranty==='OOW'?v.rate:0,acknowledgedBy:v.acknowledgement?.userId??'',acknowledgedAt:v.acknowledgement?.at??''}));};
  return {db,visible,get,payments,assets:user=>{const assignedIds=new Set(visible(user).map(v=>v.assetId));return read('assets').filter(a=>assignedIds.has(a.id)).map(withBranchLocation);},
+   start(user,id) {return transaction(()=>{
+    if(user.role!=='technician')fail('Only the assigned technician can start a visit',403);
+    const v=get(user,id);if(!['scheduled','unacknowledged'].includes(v.status))fail('This visit cannot be started in its current state',409);
+    if(!v.startedAt){v.startedAt=new Date().toISOString();v.startedBy=user.id;save(v);audit(user,'visit.started',id,{startedAt:v.startedAt});}
+    return v;
+   });},
+   draft(user,id) {
+    if(user.role!=='technician')fail('Only the assigned technician can access a draft',403);
+    get(user,id);const row=db.prepare('SELECT payload,revision,updated_at FROM technician_drafts WHERE visit_id=? AND user_id=?').get(id,user.id);
+    return row?{values:JSON.parse(row.payload),revision:row.revision,updatedAt:row.updated_at}:null;
+   },
+   saveDraft(user,id,input) {return transaction(()=>{
+    if(user.role!=='technician')fail('Only the assigned technician can save a draft',403);
+    const v=get(user,id);if(!['scheduled','unacknowledged'].includes(v.status))fail('Only editable visits can have drafts',409);
+    if(!v.startedAt)fail('Start the visit before saving an FSR draft',409);
+    if(!input || !input.values || typeof input.values!=='object' || Array.isArray(input.values) || !Number.isInteger(input.revision) || input.revision<0)fail('Invalid draft',422);
+    const allowed=new Set(fields.filter(f=>f.type!=='auto').map(f=>f.key));
+    const values={};for(const [key,value] of Object.entries(input.values)){if(!allowed.has(key))fail('Unknown draft field: '+key,422);if(typeof value!=='string' && typeof value!=='number')fail('Invalid draft value: '+key,422);values[key]=value;}
+    const errors=validateFields(values,{partial:true});if(errors.length)fail(errors.join('; '),422);
+    const old=db.prepare('SELECT revision FROM technician_drafts WHERE visit_id=? AND user_id=?').get(id,user.id);
+    if(input.revision!==(old?.revision??0))fail('This draft changed in another window. Reopen the visit to load the latest saved draft.',409);
+    const revision=input.revision+1,updatedAt=new Date().toISOString();
+    run('INSERT INTO technician_drafts(visit_id,user_id,payload,revision,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(visit_id,user_id) DO UPDATE SET payload=excluded.payload,revision=excluded.revision,updated_at=excluded.updated_at',id,user.id,JSON.stringify(values),revision,updatedAt);
+    return {values,revision,updatedAt};
+   });},
    submit(user,id,input) {return transaction(()=>{
     if(user.role!=='technician')fail('Only the assigned technician can submit',403);
     const v=get(user,id);if(!['scheduled','unacknowledged'].includes(v.status))fail('This visit cannot be submitted in its current state',409);
@@ -61,8 +87,9 @@ export function createStore(path) {
     const stamp=new Date().toISOString(),day=stamp.slice(0,10);
     const sixMonthsAgo=new Date(stamp);sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth()-6);
     const fsr=Object.fromEntries(fields.filter(f=>f.type!=='auto').map(f=>[f.key,input[f.key]??'']));
-    Object.assign(fsr,{branchCode:a.branchCode,siteAddress:a.siteAddress,region:a.region,vendor:a.vendor,customerId:`${a.branchCode}-${randomUUID()}`,month:v.month,visitDate:day,lastVisitDate:a.lastVisitDate,scheduleDate:v.dueDate,visitStatus:day>dateAdd(v.dueDate,5)?'Delayed':'On-Time',nextServiceDue:dateAdd(day,30),fsrNumber:v.fsr?.fsrNumber??`FSR-${randomUUID()}`,lastServiceDate:a.lastServiceDate,lastServiceHours:a.lastServiceHours,pmRequired:Number(input.currentHours)-a.lastServiceHours>=200 || new Date(a.lastServiceDate)<sixMonthsAgo?'Yes':'No',installationYear:a.installationYear,warranty:a.warranty,submittedAt:stamp,technicianId:user.id});
+    Object.assign(fsr,{branchCode:a.branchCode,siteAddress:a.siteAddress,region:a.region,vendor:a.vendor,customerId:`${a.branchCode}-${randomUUID()}`,month:v.month,visitDate:day,lastVisitDate:a.lastVisitDate,scheduleDate:v.dueDate,visitStatus:day>dateAdd(v.dueDate,5)?'Delayed':'On-Time',nextServiceDue:dateAdd(day,30),fsrNumber:v.fsr?.fsrNumber??`FSR-${randomUUID()}`,lastServiceDate:a.lastServiceDate,lastServiceHours:a.lastServiceHours,pmRequired:Number(input.currentHours)-a.lastServiceHours>=200 || new Date(a.lastServiceDate)<sixMonthsAgo?'Yes':'No',installationYear:a.installationYear,warranty:a.warranty,submittedAt:stamp,technicianId:user.id,visitStartedAt:v.startedAt??null});
     run('INSERT INTO fsr_versions(visit_id,payload) VALUES(?,?)',id,JSON.stringify(fsr));
+    run('DELETE FROM technician_drafts WHERE visit_id=?',id);
     v.fsr=fsr;v.status='submitted';v.acknowledgement=null;save(v);audit(user,'fsr.submitted',id,{fsrNumber:fsr.fsrNumber});return v;
    });},
    review(user,id,decision,reason) {return transaction(()=>{
