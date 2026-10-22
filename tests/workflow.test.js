@@ -8,7 +8,7 @@ import { createApp } from '../src/server.js';
 import { fields } from '../src/fields.js';
 const tech=users.find(u=>u.role==='technician'),branch=users.find(u=>u.id==='branch-demo'),branch2=users.find(u=>u.id==='branch-two'),ho=users[0];
 const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
-export function completeFsr(){return Object.fromEntries(fields.filter(f=>f.type!=='auto').map(f=>[f.key,Array.isArray(f.type)?f.type[0]:f.type==='number'?(f.key==='currentHours'?1200:10):f.type==='attachment'?image:'None']));}
+export function completeFsr(){return Object.fromEntries(fields.filter(f=>f.type!=='auto'&&!f.optional).map(f=>[f.key,Array.isArray(f.type)?f.type[0]:f.type==='number'?(f.key==='currentHours'?1200:10):f.type==='attachment'?image:'None']));}
 test('Required FSR data, reading validation and scoped submission',()=>{
  const store=createStore(':memory:');try{
   const visit=store.visible(tech)[0];

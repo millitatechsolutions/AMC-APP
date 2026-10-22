@@ -38,7 +38,9 @@ The first screen now shows an assigned-branch map and three cards: **AMC**, **Wa
 Start with the selector labelled **Demo workspace** at the top of the screen:
 
 - **PowerVision Head Office:** see all demo assets, visit progress, audit history and payment reconciliation.
-- **UBL Head Office:** see UBL branch progress and complete submitted FSR reports; this workspace is read-only.
+- **UBL Head Office:** see UBL records, compare paper FSR images and export the UBL AMC workbook.
+- **HBL Head Office:** see HBL records, compare paper images and download the HBL AMC workbook.
+- **HBL Assigned Technician / HBL Branch 0001 Reviewer:** complete an HBL FSR and review that branch.
 - **Assigned Technician:** complete an assigned visit's Field Service Report (FSR), including technical readings and three images.
 - **UBL Branch 0001 Reviewer:** review the warranty visit for branch 0001.
 - **UBL Branch 0005 Reviewer (AMC):** review the out-of-warranty visit for branch 0005.
@@ -103,3 +105,9 @@ You can try the phone-style layout on your computer. Actual phone access is not 
 ## Open complete FSR reports in both offices
 
 Select **PowerVision Head Office** or **UBL Head Office**, then **Reports**. Open a submitted FSR to see all technical fields, before/after/stamped-FSR photos, technician details, timestamps, branch decision and saved revisions. **Print report** opens the browser print dialog. Both workspaces use the same technician submission. [Detailed report guide](shared-fsr-reports.md).
+
+## New paper FSR and HBL Excel report
+
+In the technician app, choose the correct assigned technician, complete the core sections, then copy any recorded paper FSR details using the section navigator. Upload a readable completed signed/stamped FSR photograph and compare it before submission. HBL and PowerVision can each open it beside the entered values and record Matched or Mismatch. Verification is manual.
+
+For Excel, select **HBL Head Office → AMC Excel report**, choose the month, and download Excel. It follows the supplied 69-column format and includes a second Data sources worksheet. Branch/master data comes from the saved asset records; measurements and job results come from the technician FSR; schedule and computed details come from the system. Pending readings remain blank. [Full walkthrough and upgrade instructions](fsr-v02-and-hbl-reports.md).

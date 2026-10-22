@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fields, validateFields } from './fields.js';
 import { createInventory } from './inventory.js';
+import { REPORT_COLUMNS, buildAmcRows } from './amc-report.js';
 export const COMPANY_NAME='PowerVision Systems Pvt Ltd';
 const vendorName=name=>name==='Demo AMC Services'?COMPANY_NAME:name;
 const assetClient=asset=>asset?.client || (/^DEMO-ENGINE-\d+$/.test(String(asset?.engineSerial??''))?'UBL':'');
@@ -14,7 +15,10 @@ export const users=[
  {id:'branch-two',name:'UBL Branch 0002 Reviewer',role:'branch',client:'UBL',branchCode:'0002',employeeId:'DEMO-BR-2'},
  {id:'branch-five',name:'UBL Branch 0005 Reviewer (AMC)',role:'branch',client:'UBL',branchCode:'0005',employeeId:'DEMO-BR-5'},
  {id:'vendor-demo',name:'PowerVision Management',role:'vendor',vendor:COMPANY_NAME,employeeId:'DEMO-VENDOR'},
- {id:'ubl-ho-demo',name:'UBL Head Office',role:'client_ho',client:'UBL',employeeId:'DEMO-UBL-HO'}
+ {id:'ubl-ho-demo',name:'UBL Head Office',role:'client_ho',client:'UBL',employeeId:'DEMO-UBL-HO'},
+ {id:'hbl-ho-demo',name:'HBL Head Office',role:'client_ho',client:'HBL',employeeId:'DEMO-HBL-HO'},
+ {id:'hbl-branch-demo',name:'HBL Branch 0001 Reviewer',role:'branch',client:'HBL',branchCode:'0001',employeeId:'DEMO-HBL-BR-1'},
+ {id:'hbl-tech-demo',name:'HBL Assigned Technician',role:'technician',employeeId:'DEMO-HBL-TECH'}
 ];
 export const dateAdd=(day,n)=>new Date(Date.parse(`${day}T00:00:00Z`)+n*86400000).toISOString().slice(0,10);
 // Approximate city locations for synthetic records only; these are not verified UBL branch coordinates.
@@ -40,6 +44,11 @@ export function createStore(path) {
  CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS visits (id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id), month TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL, UNIQUE(asset_id,month));
  CREATE TABLE IF NOT EXISTS fsr_versions (id INTEGER PRIMARY KEY, visit_id TEXT NOT NULL REFERENCES visits(id), payload TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS fsr_verifications (id INTEGER PRIMARY KEY, visit_id TEXT NOT NULL REFERENCES visits(id), revision INTEGER NOT NULL REFERENCES fsr_versions(id), scope TEXT NOT NULL CHECK(scope IN ('company','client')), at TEXT NOT NULL, payload TEXT NOT NULL);
+ CREATE INDEX IF NOT EXISTS fsr_verifications_visit ON fsr_verifications(visit_id,id);
+ CREATE TRIGGER IF NOT EXISTS fsr_verifications_no_update BEFORE UPDATE ON fsr_verifications BEGIN SELECT RAISE(ABORT,'FSR verification history is immutable'); END;
+ CREATE TRIGGER IF NOT EXISTS fsr_verifications_no_delete BEFORE DELETE ON fsr_verifications BEGIN SELECT RAISE(ABORT,'FSR verification history is immutable'); END;
+ CREATE TABLE IF NOT EXISTS app_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS technician_drafts (visit_id TEXT NOT NULL REFERENCES visits(id), user_id TEXT NOT NULL, payload TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(visit_id,user_id));
  CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, entity TEXT NOT NULL, at TEXT NOT NULL, detail TEXT NOT NULL);`);
  const run=(sql,...params)=>db.prepare(sql).run(...params);
@@ -65,24 +74,91 @@ export function createStore(path) {
      run('INSERT INTO visits VALUES(?,?,?,?,?)',visit.id,asset.id,month,visit.status,JSON.stringify(visit));
    }
  });
+ // Add HBL examples once to a recognizable demonstration database. Real or
+ // mixed datasets never receive invented client assignments or service visits.
+ if(!db.prepare('SELECT name FROM app_migrations WHERE name=?').get('hbl-demo-v1')) {
+  const existing=read('assets');
+  if(existing.length && existing.every(a=>/^DEMO-(?:HBL-)?ENGINE-\d+$/.test(String(a.engineSerial??'')))) transaction(()=>{
+   if(db.prepare('SELECT name FROM app_migrations WHERE name=?').get('hbl-demo-v1'))return;
+   const now=new Date().toISOString().slice(0,10),month=now.slice(0,7);
+   for(let i=1;i<=3;i++) {
+    const branchCode=String(i).padStart(4,'0'),id=`GEN-HBL-${branchCode}`;
+    if(db.prepare('SELECT id FROM assets WHERE id=?').get(id))continue;
+    const asset={id,client:'HBL',branchCode,branchName:['Lahore','Karachi','Islamabad'][i-1]+' HBL Demo Branch',siteAddress:'Synthetic HBL demo site '+branchCode,region:['Central','South','North'][i-1],vendor:COMPANY_NAME,warranty:i===1?'Warranty':'OOW',rate:i===1?0:3500,installationYear:i===1?2026:2023,lastVisitDate:dateAdd(now,-30),lastServiceDate:dateAdd(now,-90),lastServiceHours:1000,engineSerial:`DEMO-HBL-ENGINE-${i}`,model:'Demo 100',rating:100,latitude:[31.5204,24.8607,33.6844][i-1],longitude:[74.3587,67.0011,73.0479][i-1],locationSource:'Demo city location'};
+    run('INSERT INTO assets VALUES(?,?)',id,JSON.stringify(asset));
+    const visit={id:`VIS-HBL-${month}-${branchCode}`,assetId:id,client:'HBL',branchCode,branchName:asset.branchName,region:asset.region,vendor:asset.vendor,warranty:asset.warranty,rate:asset.rate,month,dueDate:dateAdd(now,i-2),technicianId:'hbl-tech-demo',status:'scheduled',fsr:null,acknowledgement:null};
+    run('INSERT INTO visits VALUES(?,?,?,?,?)',visit.id,id,month,visit.status,JSON.stringify(visit));
+   }
+   run('INSERT INTO app_migrations(name,applied_at) VALUES(?,?)','hbl-demo-v1',new Date().toISOString());
+  });
+ }
  const stock=createInventory(db,{companyName:COMPANY_NAME});
  const save=visit=>run('UPDATE visits SET status=?,payload=? WHERE id=?',visit.status,JSON.stringify(visit),visit.id);
  const visible=user=>read('visits').filter(v=>accessible(user,v)).map(present);
  const get=(user,id)=>{const v=read('visits').find(v=>v.id===id);if(!v)fail('Visit not found',404);if(!accessible(user,v))fail('Access denied',403);return present(v);};
  const history=(user,id)=>{get(user,id);return db.prepare('SELECT id,payload FROM fsr_versions WHERE visit_id=? ORDER BY id').all(id).map(r=>({revision:r.id,fsr:JSON.parse(r.payload)}));};
  const payments=(user,month)=>{if(!['ho','vendor'].includes(user.role))fail('Access denied',403);return visible(user).filter(v=>v.month===month).map(v=>({visitId:v.id,fsrId:v.fsr?.fsrNumber??'',branchCode:v.branchCode,assetId:v.assetId,vendor:v.vendor,month:v.month,warranty:v.warranty,status:v.status,eligible:v.status==='acknowledged' && v.warranty==='OOW',rate:v.rate,payable:v.status==='acknowledged' && v.warranty==='OOW'?v.rate:0,acknowledgedBy:v.acknowledgement?.userId??'',acknowledgedAt:v.acknowledgement?.at??''}));};
+ const verification=id=>{
+  const revision=db.prepare('SELECT id FROM fsr_versions WHERE visit_id=? ORDER BY id DESC LIMIT 1').get(id)?.id??null;
+  const entries=db.prepare('SELECT id,payload FROM fsr_verifications WHERE visit_id=? ORDER BY id DESC').all(id).map(row=>({id:row.id,...JSON.parse(row.payload)}));
+  return {revision,company:entries.find(e=>e.revision===revision&&e.scope==='company')??null,client:entries.find(e=>e.revision===revision&&e.scope==='client')??null,history:entries};
+ };
+ const companyOwns=(vendor,visit)=>{
+  const asset=read('assets').find(a=>a.id===visit.assetId);
+  return vendorName(visit.vendor)===vendor && vendorName(asset?.vendor)===vendor;
+ };
+ const report=(user,id)=>{
+  const visit=get(user,id),asset=presentAsset(read('assets').find(a=>a.id===visit.assetId));
+  const identity=users.find(u=>u.id===(visit.fsr?.technicianId??visit.technicianId));
+  const technician={id:visit.fsr?.technicianId??visit.technicianId,name:visit.fsr?.technicianName??identity?.name??'Assigned technician',employeeId:visit.fsr?.technicianEmployeeId??identity?.employeeId??'Not recorded'};
+  const activity=db.prepare('SELECT * FROM audit WHERE entity=? ORDER BY id').all(id).map(a=>({...a,detail:JSON.parse(a.detail)}));
+  return {visit,asset,technician,company:{name:visit.vendor||'Not recorded'},client:{name:visit.client||'Not recorded'},history:history(user,id),verification:verification(id),activity};
+ };
  return {db,visible,get,payments,assets:user=>{const assignedIds=new Set(visible(user).map(v=>v.assetId));return read('assets').filter(a=>assignedIds.has(a.id)).map(presentAsset);},
    inventory:user=>stock.inventory(user),
    inventoryCatalogue:user=>stock.catalogue(user),
    createInventoryItem:(user,input)=>stock.createItem(user,input),
    receiveInventory:(user,input)=>stock.receive(user,input),
-   report(user,id) {
-    const visit=get(user,id),asset=presentAsset(read('assets').find(a=>a.id===visit.assetId));
-    const identity=users.find(u=>u.id===(visit.fsr?.technicianId??visit.technicianId));
-    const technician={id:visit.fsr?.technicianId??visit.technicianId,name:visit.fsr?.technicianName??identity?.name??'Assigned technician',employeeId:visit.fsr?.technicianEmployeeId??identity?.employeeId??'Not recorded'};
-    const activity=db.prepare('SELECT * FROM audit WHERE entity=? ORDER BY id').all(id).map(a=>({...a,detail:JSON.parse(a.detail)}));
-    return {visit,asset,technician,company:{name:COMPANY_NAME},client:{name:visit.client||'Not recorded'},history:history(user,id),activity};
+   report,
+   amcReport(user,{month=new Date().toISOString().slice(0,7),client=user.client??'HBL'}={}) {
+    if(!['ho','vendor','client_ho'].includes(user.role))fail('Only company management and client head office can access AMC reports',403);
+    if(typeof month!=='string'||!/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(month))fail('Choose a valid report month (YYYY-MM)',422);
+    if(typeof client!=='string'||!['UBL','HBL'].includes(client))fail('Unsupported AMC report client',422);
+    if(user.role==='client_ho'&&client!==user.client)fail('This client is outside your report scope',403);
+    const assetsById=new Map(read('assets').map(asset=>[asset.id,asset]));
+    const selected=visible(user).filter(v=>v.month===month&&v.client===client);
+    const vendor=user.role==='ho'?COMPANY_NAME:vendorName(user.vendor);
+    const owned=user.role==='client_ho'?selected:selected.filter(v=>vendorName(v.vendor)===vendor&&vendorName(assetsById.get(v.assetId)?.vendor)===vendor);
+    // Monthly exports need the latest snapshot and master data, not the full
+    // photo-heavy revision history and activity fetched for a report viewer.
+    const reports=owned.map(visit=>({visit,asset:presentAsset(assetsById.get(visit.assetId))}));
+    return {columns:REPORT_COLUMNS,rows:buildAmcRows(reports),month,client};
    },
+   verify(user,id,input) {return transaction(()=>{
+    const visit=get(user,id);
+    const company=(user.role==='ho'&&companyOwns(COMPANY_NAME,visit))||(user.role==='vendor'&&companyOwns(vendorName(user.vendor),visit));
+    const client=(user.role==='client_ho'&&matchesClient(user,visit))||(user.role==='branch'&&visit.branchCode===user.branchCode&&matchesClient(user,visit));
+    if(!company&&!client)fail('Only the responsible company or client reviewer can verify this FSR',403);
+    if(!input||typeof input!=='object'||Array.isArray(input))fail('Invalid FSR verification',422);
+    if(!Number.isSafeInteger(input.revision)||input.revision<1)fail('A valid submitted revision is required',422);
+    const latest=db.prepare('SELECT id,payload FROM fsr_versions WHERE visit_id=? ORDER BY id DESC LIMIT 1').get(id);
+    if(!latest||latest.id!==input.revision)fail('This report revision has changed. Reopen the latest submitted FSR before verifying.',409);
+    const snapshot=JSON.parse(latest.payload);
+    if(typeof snapshot.fsrPhoto!=='string'||!snapshot.fsrPhoto.startsWith('data:image/'))fail('Upload the completed paper FSR image before verification',422);
+    if(!['matched','mismatch'].includes(input.decision))fail('Choose matched or mismatch',422);
+    if(input.reason!==undefined&&typeof input.reason!=='string')fail('Verification reason must be text',422);
+    const reason=(input.reason??'').trim();
+    if(reason.length>4000)fail('Verification reason must be at most 4000 characters',422);
+    if(input.decision==='mismatch'&&!reason)fail('Explain the mismatch before recording it',422);
+    const checked=input.fields===undefined?[]:input.fields,allowed=new Set([...fields.map(f=>f.key),'inventoryUsage']);
+    if(!Array.isArray(checked)||checked.length>allowed.size||checked.some(key=>typeof key!=='string'||!allowed.has(key))||new Set(checked).size!==checked.length)fail('Choose valid distinct FSR fields to verify',422);
+    const reviewer={id:user.id,name:user.name,employeeId:user.employeeId??''};
+    const entry={visitId:id,revision:latest.id,scope:company?'company':'client',reviewer,actor:reviewer,client:visit.client,vendor:visit.vendor,decision:input.decision,fields:checked,reason,at:new Date().toISOString()};
+    const inserted=run('INSERT INTO fsr_verifications(visit_id,revision,scope,at,payload) VALUES(?,?,?,?,?)',id,latest.id,entry.scope,entry.at,JSON.stringify(entry));
+    const result={id:Number(inserted.lastInsertRowid),...entry};
+    audit(user,'fsr.verified',id,{verificationId:result.id,revision:entry.revision,scope:entry.scope,decision:entry.decision,fields:checked,reason});
+    return result;
+   });},
    start(user,id) {return transaction(()=>{
     if(user.role!=='technician')fail('Only the assigned technician can start a visit',403);
     const v=get(user,id);if(!['scheduled','unacknowledged'].includes(v.status))fail('This visit cannot be started in its current state',409);
@@ -102,6 +178,7 @@ export function createStore(path) {
     const allowed=new Set(fields.filter(f=>f.type!=='auto').map(f=>f.key));
     const values={};for(const [key,value] of Object.entries(input.values)){
      if(key==='inventoryUsage'){values[key]=stock.normalizeUsage(value).map(line=>({itemId:line.itemId,quantity:line.quantity}));continue;}
+     if(key==='fsrTemplate'){if(value!=='PVS-FSR-V02')fail('Unsupported FSR template',422);values[key]=value;continue;}
      if(!allowed.has(key))fail('Unknown draft field: '+key,422);if(typeof value!=='string' && typeof value!=='number')fail('Invalid draft value: '+key,422);values[key]=value;
     }
     const errors=validateFields(values,{partial:true});if(errors.length)fail(errors.join('; '),422);
@@ -120,10 +197,12 @@ export function createStore(path) {
     if(Number(input.currentHours)<a.lastServiceHours)fail('Running hours cannot be below the last service reading',422);
     const stamp=new Date().toISOString(),day=stamp.slice(0,10);
     const sixMonthsAgo=new Date(stamp);sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth()-6);
-    const fsr=Object.fromEntries(fields.filter(f=>f.type!=='auto').map(f=>[f.key,input[f.key]??'']));
+    const fsr=Object.fromEntries(fields.filter(f=>f.type!=='auto').map(f=>[f.key,f.optional&&!Object.hasOwn(input,f.key)?v.fsr?.[f.key]??'':input[f.key]??'']));
     // Old clients cannot accidentally return previously booked material by omitting the new field.
     fsr.inventoryUsage=stock.normalizeUsage(Object.hasOwn(input,'inventoryUsage')?input.inventoryUsage:v.fsr?.inventoryUsage??[]);
-    Object.assign(fsr,{branchCode:a.branchCode,siteAddress:a.siteAddress,region:a.region,vendor:vendorName(a.vendor),client:clientOf(v),company:COMPANY_NAME,customerId:`${a.branchCode}-${randomUUID()}`,month:v.month,visitDate:day,lastVisitDate:a.lastVisitDate,scheduleDate:v.dueDate,visitStatus:day>dateAdd(v.dueDate,5)?'Delayed':'On-Time',nextServiceDue:dateAdd(day,30),fsrNumber:v.fsr?.fsrNumber??`FSR-${randomUUID()}`,lastServiceDate:a.lastServiceDate,lastServiceHours:a.lastServiceHours,pmRequired:Number(input.currentHours)-a.lastServiceHours>=200 || new Date(a.lastServiceDate)<sixMonthsAgo?'Yes':'No',installationYear:a.installationYear,warranty:a.warranty,submittedAt:stamp,technicianId:user.id,technicianName:user.name,technicianEmployeeId:user.employeeId,visitStartedAt:v.startedAt??null});
+    const template=Object.hasOwn(input,'fsrTemplate')?input.fsrTemplate:v.fsr?.fsrTemplate;
+    if(template!==undefined){if(template!=='PVS-FSR-V02')fail('Unsupported FSR template',422);fsr.fsrTemplate=template;}
+    Object.assign(fsr,{branchCode:a.branchCode,siteAddress:a.siteAddress,region:a.region,vendor:vendorName(v.vendor),client:clientOf(v),company:vendorName(v.vendor),customerId:`${a.branchCode}-${randomUUID()}`,month:v.month,visitDate:day,lastVisitDate:a.lastVisitDate,scheduleDate:v.dueDate,visitStatus:day>dateAdd(v.dueDate,5)?'Delayed':'On-Time',nextServiceDue:dateAdd(day,30),fsrNumber:v.fsr?.fsrNumber??`FSR-${randomUUID()}`,lastServiceDate:a.lastServiceDate,lastServiceHours:a.lastServiceHours,pmRequired:Number(input.currentHours)-a.lastServiceHours>=200 || new Date(a.lastServiceDate)<sixMonthsAgo?'Yes':'No',installationYear:a.installationYear,warranty:a.warranty,submittedAt:stamp,technicianId:user.id,technicianName:user.name,technicianEmployeeId:user.employeeId,visitStartedAt:v.startedAt??null});
     run('INSERT INTO fsr_versions(visit_id,payload) VALUES(?,?)',id,JSON.stringify(fsr));
     const revision=Number(db.prepare('SELECT COUNT(*) AS count FROM fsr_versions WHERE visit_id=?').get(id).count);
     stock.applyUsage(user,{visit:v,fsrNumber:fsr.fsrNumber,revision,previousUsage:v.fsr?.inventoryUsage??[],usage:fsr.inventoryUsage});

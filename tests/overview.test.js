@@ -6,21 +6,22 @@ import { serviceSummary, branchLocations } from '../shared/overview.js';
 import { fields } from '../src/fields.js';
 const ho=users[0],tech=users.find(u=>u.role==='technician'),branch=users.find(u=>u.id==='branch-five');
 const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
-function fsr(){return Object.fromEntries(fields.filter(f=>f.type!=='auto').map(f=>[f.key,Array.isArray(f.type)?f.type[0]:f.type==='number'?(f.key==='currentHours'?1200:10):f.type==='attachment'?image:'None']));}
+function fsr(){return Object.fromEntries(fields.filter(f=>f.type!=='auto'&&!f.optional).map(f=>[f.key,Array.isArray(f.type)?f.type[0]:f.type==='number'?(f.key==='currentHours'?1200:10):f.type==='attachment'?image:'None']));}
 test('Overview tracks technician submission separately from branch decisions and payable status',()=>{
  const store=createStore(':memory:');try{
-  const initial=serviceSummary(store.visible(ho));
+  const clientOffice=users.find(u=>u.id==='ubl-ho-demo');
+  const initial=serviceSummary(store.visible(clientOffice));
   assert.deepEqual([initial.amc.total,initial.warranty.total,initial.total.total],[8,4,12]);
   assert.equal(initial.total.performed,0);assert.equal(initial.total.remaining,12);
   const visit=store.visible(branch)[0];store.submit(tech,visit.id,fsr());
-  let current=serviceSummary(store.visible(ho));
+  let current=serviceSummary(store.visible(clientOffice));
   assert.equal(current.amc.performed,1);assert.equal(current.amc.remaining,7);assert.equal(current.total.remaining,11);assert.equal(current.warranty.performed,0);
   assert.equal(current.total.awaitingReview,1);assert.equal(current.total.acknowledged,0);
   assert.equal(store.payments(ho,visit.month).find(p=>p.visitId===visit.id).payable,0);
   store.review(branch,visit.id,'unacknowledged','A clearer photograph is needed');
-  current=serviceSummary(store.visible(ho));assert.equal(current.amc.performed,1);assert.equal(current.amc.needsCorrection,1);assert.equal(current.amc.remaining,7);
+  current=serviceSummary(store.visible(clientOffice));assert.equal(current.amc.performed,1);assert.equal(current.amc.needsCorrection,1);assert.equal(current.amc.remaining,7);
   store.submit(tech,visit.id,fsr());store.review(branch,visit.id,'acknowledged');
-  current=serviceSummary(store.visible(ho));assert.equal(current.amc.performed,1);assert.equal(current.amc.acknowledged,1);assert.equal(current.amc.needsCorrection,0);
+  current=serviceSummary(store.visible(clientOffice));assert.equal(current.amc.performed,1);assert.equal(current.amc.acknowledged,1);assert.equal(current.amc.needsCorrection,0);
   assert.equal(serviceSummary([]).total.total,0);
   const locations=branchLocations(store.visible(branch),store.assets(branch));assert.equal(locations.length,1);assert.equal(locations[0].branchCode,'0005');assert.equal(locations[0].state,'performed');assert.equal(locations[0].locationSource,'Demo city location');
  }finally{store.close();}
@@ -44,4 +45,11 @@ test('Polling API omits image bodies and detail/map data stays branch-scoped',as
   const assets=await(await fetch(base+'/api/assets',{headers:{cookie}})).json();assert.equal(assets.length,1);assert.equal(assets[0].branchCode,'0005');assert.equal(typeof assets[0].latitude,'number');
   assert.equal((await fetch(base+'/overview.js')).status,200);assert.equal((await fetch(base+'/branch-map.geojson')).status,200);
  }finally{await new Promise(r=>server.close(r));}
+});
+test('Map keeps clients with the same branch code separate',()=>{
+ const visits=[{id:'u',assetId:'ua',client:'UBL',branchCode:'0001',branchName:'UBL demo',warranty:'OOW',fsr:{}},{id:'h',assetId:'ha',client:'HBL',branchCode:'0001',branchName:'HBL demo',warranty:'OOW',fsr:null}];
+ const branches=branchLocations(visits,[{id:'ua',client:'UBL',latitude:24,longitude:67},{id:'ha',client:'HBL',latitude:31,longitude:74}]);
+ assert.equal(branches.length,2);
+ assert.notEqual(branches[0].id,branches[1].id);
+ assert.deepEqual(branches.map(b=>[b.client,b.total,b.performed,b.latitude]),[['UBL',1,1,24],['HBL',1,0,31]]);
 });

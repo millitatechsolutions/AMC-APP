@@ -25,7 +25,7 @@ The theoretical maximum monthly visit charge at the stated rate is **PKR 5,250,0
 | HO | Dashboard, filters, asset register, visit drill-down, warranty/OOW summaries | Import 2,200 assets, calendar, recurrence, configurable SLA and escalations, issue ageing |
 | FSR | Structured source-table fields, checklist choices, computed references/PM flag, evidence and revisions | Customer-approved dictionary, supplier master, stricter range/consistency rules, true PM-history updates |
 | Finance | Authoritative eligibility and rate, monthly traceable payment CSV | Approval/locking/reversal workflow, invoice links, versioned commercial rates, settlement and finance integration |
-| Reports | Dashboard, visit detail, payment statement and CSV | Full FSR export, Excel/PDF, all 13 named reports, scheduled exports and authorization review |
+| Reports | Dashboard, full FSR/revisions/evidence, payment statement/CSV and 69-column AMC XLSX with source mapping | Other named reports, signed PDF service and scheduled exports |
 | Security | Local demo sessions and server-side scope checks | Enterprise identity/MFA, full RBAC, secure Android storage, TLS, retention, immutable external audit and penetration review |
 | Operations | Reproducible local development with persistent SQLite | Approved hosting/data residency, PostgreSQL, object storage, backup/restore tests, monitoring, HA/DR and incident SLA |
 
@@ -52,3 +52,7 @@ No Android, offline, notification, Here4you integration, production security or 
 5. **UAT and rollout:** customer sign-off against section 16, manuals and training, production deployment and agreed support model.
 
 Calendar estimates and costs require approved integrations, team capacity and customer security decisions; they are not committed here.
+
+## Additional paper FSR and HBL references
+
+The later user-supplied FSR-V02.pdf is a blank PowerVision paper form, now represented by 150 optional fields alongside the original 75-field dictionary. The signed/stamped image is uploaded separately and compared manually by the responsible company/client, with immutable per-revision results. The supplied Report Format AMC.xlsx is a 69-column format reference; its UBL sample values are not HBL source data. HBL now has isolated demo workspaces and a real AMC XLSX export, while UBL support is retained. [Implementation walkthrough](fsr-v02-and-hbl-reports.md) and [column mapping](amc-excel-column-mapping.md).

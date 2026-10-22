@@ -22,15 +22,17 @@ export function branchLocations(visits, assets) {
   const grouped = new Map();
   for (const visit of visits) {
     const asset = byId.get(visit.assetId);
+    const client = visit.client || asset?.client || '';
+    const id = JSON.stringify([client,visit.branchCode]);
     const latitude = asset?.latitude, longitude = asset?.longitude;
     const hasLocation = typeof latitude === 'number' && Number.isFinite(latitude) && Math.abs(latitude) <= 90
       && typeof longitude === 'number' && Number.isFinite(longitude) && Math.abs(longitude) <= 180;
-    if (!grouped.has(visit.branchCode)) grouped.set(visit.branchCode, {
-      branchCode: visit.branchCode, name: visit.branchName, region: visit.region,
+    if (!grouped.has(id)) grouped.set(id, {
+      id,client,branchCode: visit.branchCode, name: visit.branchName, region: visit.region,
       latitude: hasLocation ? latitude : null, longitude: hasLocation ? longitude : null,
       locationSource: asset?.locationSource ?? 'Not provided', visits: []
     });
-    const branch = grouped.get(visit.branchCode);
+    const branch = grouped.get(id);
     if (branch.latitude === null && hasLocation) Object.assign(branch, {latitude, longitude, locationSource: asset.locationSource ?? 'Provided coordinates'});
     branch.visits.push(visit);
   }

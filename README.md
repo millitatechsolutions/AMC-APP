@@ -30,7 +30,7 @@ This cloud task is already isolated. Use the existing checkout; do not create Gi
 4. Select **PowerVision Head Office** or **PowerVision Management**. View reconciliation and export the monthly CSV. Acknowledged OOW visits are PKR 3,500; warranty, pending and rejected visits are PKR 0.
 5. View audit history. A rejected FSR may be resubmitted by its assigned technician; earlier submissions remain stored as immutable revisions and available through the history API.
 
-The 12 synthetic assets include four warranty and eight OOW assets. These are demonstration data, not the document's 2,200 real gensets. Initial schedules belong to the month when the database was created; select that month after the calendar rolls over. Automated recurrence and master-data import are future work.
+The 15 synthetic assets include 12 UBL assets (four warranty, eight OOW) and three HBL assets (one warranty, two OOW). These are demonstration data, not the document's 2,200 real gensets. Initial schedules belong to the month when the database was created; select that month after the calendar rolls over. Automated recurrence and master-data import are future work.
 
 ## Included
 
@@ -43,6 +43,7 @@ The 12 synthetic assets include four warranty and eight OOW assets. These are de
 - Monthly visit-level payment report and CSV with FSR/acknowledgement traceability.
 - PowerVision inventory catalogue, opening stock, receipts, low-stock indicators and immutable FSR-linked material movements. Technician submissions deduct stock; corrections adjust only the quantity difference.
 - Functional tests covering validation, access isolation, rejection/resubmission, eligibility, duplicate review, audit, persistence and HTTP sessions.
+- Full paper FSR V02 transcription, signed/stamped image comparison, independent company/client manual verification, isolated HBL demo workspaces, and a real 69-column AMC Excel export with source mapping.
 
 ## Demo security boundary
 
@@ -55,6 +56,8 @@ The workspace selector deliberately permits selecting any demo identity without 
 [Detailed reports shared between UBL and PowerVision](docs/shared-fsr-reports.md) explains all fields, photos, revision history and printing.
 
 [Inventory management and FSR material usage](docs/inventory-management.md) explains company stock controls and technician entry.
+
+[Paper FSR V02, HBL verification and Excel reporting](docs/fsr-v02-and-hbl-reports.md) explains the new workflow. [All 69 Excel columns and their data sources](docs/amc-excel-column-mapping.md).
 
 ## Overview preview
 

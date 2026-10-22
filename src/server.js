@@ -5,11 +5,12 @@ import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createStore, users } from './store.js';
 import { fields } from './fields.js';
+import { createAmcWorkbook } from './amc-report.js';
 const root=fileURLToPath(new URL('../public/',import.meta.url));
 export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL('../data/amc.sqlite',import.meta.url))}={}) {
  const store=createStore(dbPath),sessions=new Map();
  const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
- const body=async req=>{let text='';for await (const chunk of req) {text+=chunk;if(Buffer.byteLength(text)>12*1024*1024)throw Object.assign(new Error('Request exceeds 12 MB'),{status:413});}try{return JSON.parse(text||'{}');}catch{throw Object.assign(new Error('Invalid JSON'),{status:400});}};
+ const body=async req=>{let text='';for await (const chunk of req) {text+=chunk;if(Buffer.byteLength(text)>18*1024*1024)throw Object.assign(new Error('Request exceeds 18 MB'),{status:413});}try{return JSON.parse(text||'{}');}catch{throw Object.assign(new Error('Invalid JSON'),{status:400});}};
  const server=http.createServer(async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
@@ -38,7 +39,17 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
     if(draftPath&&req.method==='POST')return json(res,200,store.saveDraft(user,decodeURIComponent(draftPath[1]),await body(req)));
     const startPath=path.match(/^\/api\/visits\/([^/]+)\/start$/);
     if(startPath&&req.method==='POST'){await body(req);return json(res,200,store.start(user,decodeURIComponent(startPath[1])));}
+    const verificationPath=path.match(/^\/api\/visits\/([^/]+)\/verify$/);
+    if(verificationPath&&req.method==='POST')return json(res,201,store.verify(user,decodeURIComponent(verificationPath[1]),await body(req)));
     if(req.method==='GET') {
+     if(path==='/api/amc-report'||path==='/api/amc-report.xlsx') {
+      const options={};if(url.searchParams.has('month'))options.month=url.searchParams.get('month');if(url.searchParams.has('client'))options.client=url.searchParams.get('client');
+      const report=store.amcReport(user,options);
+      if(path==='/api/amc-report')return json(res,200,report);
+      const workbook=await createAmcWorkbook(report.rows,{month:report.month,client:report.client});
+      res.writeHead(200,{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="amc-report-${report.month}-${report.client}.xlsx"`,'Cache-Control':'no-store'});
+      return res.end(workbook);
+     }
      const report=path.match(/^\/api\/visits\/([^/]+)\/report$/);
      if(report)return json(res,200,store.report(user,decodeURIComponent(report[1])));
      const history=path.match(/^\/api\/visits\/([^/]+)\/history$/);

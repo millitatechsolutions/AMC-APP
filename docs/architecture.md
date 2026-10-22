@@ -7,7 +7,7 @@ flowchart LR
   T[Technician responsive web] --> A[Node.js HTTP API]
   B[Branch responsive web] --> A
   H[PowerVision company / management web] --> A
-  C[UBL head-office web] --> A
+  C[UBL / HBL head-office web] --> A
   A --> D[(SQLite: assets, visits, FSR revisions, audit)]
 ```
 
@@ -21,6 +21,8 @@ No external database or remote service is required for the local maintenance wor
 | visits | id, asset_id, month, status, JSON payload; unique(asset_id, month) | Assigned synthetic monthly visit, due date, latest FSR and branch decision |
 | fsr_versions | id, visit_id, JSON payload | Immutable submission snapshots, including evidence and computed values |
 | technician_drafts | visit_id, user_id, payload, revision, updated_at | Assigned technician draft and optimistic-concurrency revision |
+| fsr_verifications | id, visit_id, revision, scope, at, payload | Append-only company/client comparison decisions tied to an immutable FSR revision |
+| app_migrations | name | One-time additive demo upgrade markers; never infer real HBL records |
 | audit | id, actor, action, entity, at, detail | Append-only application action/decision history |
 | inventory_items | id, case-insensitive unique SKU, unit, quantity_milli, reorder_milli | PowerVision stock catalogue and balances in integer thousandths |
 | inventory_movements | id, item_id, signed quantity_milli, type, at, payload | Immutable opening, receipt and FSR consumption/correction ledger |
@@ -62,6 +64,9 @@ All endpoints except health/demo-users/session creation require an HttpOnly loca
 | POST | /api/inventory/receipts | Company-manager receives positive stock with a required reference |
 | POST | /api/visits/:id/submit | FSR field object; technician only |
 | POST | /api/visits/:id/review | `{ "decision": "acknowledged" }` or `unacknowledged` with `reason`; branch only |
+| POST | /api/visits/:id/verify | `{revision, decision: "matched" or "mismatch", reason, fields}`; responsible company/client reviewer only |
+| GET | /api/amc-report?month=YYYY-MM&client=HBL | Company/client-HO scoped preview with 69-column metadata and rows |
+| GET | /api/amc-report.xlsx?month=YYYY-MM&client=HBL | Same authorized rows as real XLSX, with Data sources sheet |
 | GET | /api/visits/:id/history | Scope-checked immutable FSR revision history |
 | GET | /api/audit | Scope-checked action/decision history |
 | GET | /api/payments?month=YYYY-MM | HO/vendor statement including blocked/zero-charge rows |
@@ -71,7 +76,7 @@ Status codes: 400 malformed input, 401 missing/expired session, 403 role/scope d
 
 `inventoryUsage` is an optional structured FSR/draft array of `{itemId, quantity}`. On submission the server resolves SKU/name/unit and stores them in each immutable FSR snapshot. The FSR revision, signed stock movements, balance changes, draft cleanup and visit update share one `BEGIN IMMEDIATE` transaction. Any failure rolls back all of them. Corrections compare the latest booked quantities against the replacement report and record only the difference. Inventory movements have SQL triggers preventing update/delete; insufficient stock cannot produce negative balances. Managers receive item/receipt audit events; client and technician audit views exclude those company stock events. See [Inventory management](inventory-management.md).
 
-`ubl-ho-demo` is a read-only `client_ho` identity restricted to client UBL. It cannot submit, review or access finance endpoints. Branch reviewers also match their client, even if another client uses the same branch code. Explicit visit/asset client contradictions are denied to client and branch identities. Only existing `DEMO-ENGINE-*` assets with no client receive the legacy UBL label; unknown real records do not. Previous synthetic `Demo AMC Services` vendor metadata is presented as PowerVision without rewriting immutable historical FSR snapshots. New submissions retain the technician name/employee ID, client and company as server-authored metadata.
+`ubl-ho-demo` and `hbl-ho-demo` are `client_ho` identities restricted to their respective clients. They can read reports, record manual paper-image verification and export their own AMC workbook. They cannot submit, branch-acknowledge or access company payment endpoints. Branch reviewers also match their client, even if another client uses the same branch code. Explicit visit/asset client contradictions are denied to client and branch identities. Only existing `DEMO-ENGINE-*` assets with no client receive the legacy UBL label; unknown real records do not. Previous synthetic `Demo AMC Services` vendor metadata is presented as PowerVision without rewriting immutable historical FSR snapshots. New submissions retain the technician name/employee ID, client and company as server-authored metadata.
 
 ## Proposed production architecture
 
@@ -85,3 +90,5 @@ Status codes: 400 malformed input, 401 missing/expired session, 403 role/scope d
 Overview counting, demo location provenance, and Google Maps setup are documented in [Branch map and overview](branch-map-and-overview.md).
 
 Dedicated technician app, isolated sessions and start/draft APIs: [Technician application](technician-app.md).
+
+Paper V02 adds 150 optional scalar fields to the existing 75, retaining old snapshots and draft compatibility. Dates/times/checklist selections and scalar numeric ranges are validated when provided. Up to five 2 MB evidence images fit within the 18 MB JSON body bound. Manual comparison history resets to pending on each new submission revision; branch acknowledgment and stock remain independent. ExcelJS is a locked runtime dependency for the actual XLSX export. [Paper FSR/HBL guide](fsr-v02-and-hbl-reports.md) and [69-column mapping](amc-excel-column-mapping.md).

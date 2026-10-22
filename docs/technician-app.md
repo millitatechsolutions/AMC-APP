@@ -14,7 +14,7 @@ A PowerVision Systems Pvt Ltd branded responsive technician web app is available
 8. On **Review & submit**, check readings and photos, then submit. The API enforces all applicable mandatory fields again. A submitted report is read-only until a client rejects it and requests corrections.
 9. In the company/client dashboard, select the matching branch reviewer to acknowledge or reject. The technician sees that response in Reports (list checks every 30 seconds or on reload); PowerVision and UBL head-office overviews check new submissions every 15 seconds. Both offices can open the same complete FSR in Reports, including all fields and photos.
 
-The technician app has its own scoped demo-session cookie. Opening it does not change the active HO/client demo identity in another dashboard tab. The current demo includes one technician account assigned to the 12 synthetic assets. Actual technician provisioning and assignment management remain future work.
+The technician app has its own scoped demo-session cookie. Opening it does not change the active HO/client demo identity in another dashboard tab. The current demo includes the original technician assigned to 12 UBL assets and an HBL technician assigned to three HBL assets. Choose the appropriate demo account at login. Actual technician provisioning and assignment management remain future work.
 
 ## Draft and workflow behavior
 
@@ -61,3 +61,7 @@ In the Issue / Job Management step, structured **Parts & material used** selecti
 ## Verified
 
 Automated tests cover ownership, idempotent visit start, partial draft validation, persistence across database restarts, revision conflict detection, mandatory submission checks, atomic draft cleanup, isolated app/HO sessions and technician finance/review denial. Browser validation at a 390px mobile viewport exercised all 10 editable form sections, photo uploads, save/exit/resume, submission reaching HO, and branch acknowledgement returning to the technician. App shell registration and API cache exclusion passed with no JavaScript errors. Physical phone installation, live camera capture, native APK and offline synchronization were not tested or delivered.
+
+## Paper FSR V02 update
+
+The guided editor includes the original ten core sections and thirteen optional paper-form sections, with a section navigator. It captures all fields from the supplied paper FSR, including three running rows, two travel rows, checks, filter quantities and ten paper spare-part rows. Upload the completed signed/stamped FSR image in Sign-off / Closure and compare it at review; enlarge/replace the image as needed. Optional signature images are supported. Submitted paper details and evidence are shared with the assigned client and company, and both manual verification results appear in the technician record. This is manual comparison, not automatic image reading. See [the paper FSR and HBL walkthrough](fsr-v02-and-hbl-reports.md).

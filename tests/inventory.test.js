@@ -18,7 +18,7 @@ const picture = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1H
 const milli = quantity => Math.round(quantity * 1000);
 
 function completeFsr() {
-  return Object.fromEntries(fields.filter(field => field.type !== 'auto').map(field => [field.key,
+  return Object.fromEntries(fields.filter(field => field.type !== 'auto' && !field.optional).map(field => [field.key,
     Array.isArray(field.type) ? field.type[0]
       : field.type === 'number' ? (field.key === 'currentHours' ? 1200 : 10)
         : field.type === 'attachment' ? picture : 'Recorded at site'

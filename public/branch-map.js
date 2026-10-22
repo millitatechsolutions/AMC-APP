@@ -6,8 +6,9 @@ let outlines, googlePromise, leafletPromise, activeState, lastView, selectedBran
 function coordinates(branch) {
   return Number.isFinite(branch.latitude) && Number.isFinite(branch.longitude) && Math.abs(branch.latitude) <= 90 && Math.abs(branch.longitude) <= 180;
 }
+const branchId = branch => branch.id ?? branch.branchCode;
 function branchLabel(branch) {
-  return `${branch.name} · ${branch.branchCode} · ${branch.performed}/${branch.total} performed · ${branch.remaining} remaining`;
+  return `${branch.client ? branch.client+' · ' : ''}${branch.name} · ${branch.branchCode} · ${branch.performed}/${branch.total} performed · ${branch.remaining} remaining`;
 }
 function groupsFor(branches) {
   const groups = new Map();
@@ -36,7 +37,7 @@ function popupContent(group, select) {
   for (const {branch} of group.entries) {
     const title = document.createElement('strong');
     title.className = 'map-popup-title';
-    title.textContent = `${branch.name} · ${branch.branchCode}`;
+    title.textContent = `${branch.client ? branch.client+' · ' : ''}${branch.name} · ${branch.branchCode}`;
     const summary = document.createElement('p');
     summary.className = 'map-popup-summary';
     summary.textContent = `${branch.total} total · ${branch.performed} performed · ${branch.remaining} remaining`;
@@ -149,14 +150,14 @@ async function localMap(element, branches, onSelect, state) {
     <text x="268" y="262" class="map-country-label">PAKISTAN</text><text x="87" y="184" class="map-neighbor-label">AFGHANISTAN</text><text x="69" y="360" class="map-neighbor-label">IRAN</text><text x="462" y="373" class="map-neighbor-label">INDIA</text><text x="100" y="468" class="map-sea-label">ARABIAN SEA</text>
     ${plotted.map((b, i) => {
       const {original:[ox,oy], position:[x,y]} = pinPosition([b.longitude,b.latitude]);
-      return `<path d="M${ox.toFixed(2)},${oy.toFixed(2)} L${x.toFixed(2)},${y.toFixed(2)}" stroke="#95afa4" stroke-width="1"/><g class="branch-pin ${b.state === 'performed' ? 'performed' : 'remaining'}" data-map-branch="${escape(b.branchCode)}" transform="translate(${x.toFixed(2)},${y.toFixed(2)})" role="button" tabindex="0" aria-label="${escape(branchLabel(b))}"><title>${escape(branchLabel(b))}</title><circle r="17" class="pin-halo"/><path d="M0 0 C-2 -6 -11 -11 -11 -20 A11 11 0 1 1 11 -20 C11 -11 2 -6 0 0Z" class="pin-body"/><circle cy="-20" r="7" fill="white"/><text y="-17" text-anchor="middle" class="pin-number">${i+1}</text></g>`;
+      return `<path d="M${ox.toFixed(2)},${oy.toFixed(2)} L${x.toFixed(2)},${y.toFixed(2)}" stroke="#95afa4" stroke-width="1"/><g class="branch-pin ${b.state === 'performed' ? 'performed' : 'remaining'}" data-map-branch="${escape(branchId(b))}" transform="translate(${x.toFixed(2)},${y.toFixed(2)})" role="button" tabindex="0" aria-label="${escape(branchLabel(b))}"><title>${escape(branchLabel(b))}</title><circle r="17" class="pin-halo"/><path d="M0 0 C-2 -6 -11 -11 -11 -20 A11 11 0 1 1 11 -20 C11 -11 2 -6 0 0Z" class="pin-body"/><circle cy="-20" r="7" fill="white"/><text y="-17" text-anchor="middle" class="pin-number">${i+1}</text></g>`;
     }).join('')}
     </svg>`;
   for (const pin of element.querySelectorAll('[data-map-branch]')) {
     const select = () => {
       selectedBranch = pin.dataset.mapBranch;
       for (const item of element.querySelectorAll('[data-map-branch]')) item.classList.toggle('is-selected', item === pin);
-      onSelect(plotted.find(b => b.branchCode === pin.dataset.mapBranch));
+      onSelect(plotted.find(b => branchId(b) === pin.dataset.mapBranch));
     };
     pin.classList.toggle('is-selected', pin.dataset.mapBranch === selectedBranch);
     pin.addEventListener('click', select);
@@ -168,7 +169,7 @@ async function satelliteMap(element, branches, onSelect, onMode, state, prefix =
   if (!state.current()) return;
   element.replaceChildren();
   const plotted = branches.filter(coordinates);
-  const key = plotted.map(b => `${b.branchCode}:${b.latitude},${b.longitude}`).join('|');
+  const key = plotted.map(b => `${branchId(b)}:${b.latitude},${b.longitude}`).join('|');
   const map = L.map(element, {zoomControl:false, scrollWheelZoom:false, minZoom:2, maxZoom:18, keyboard:true});
   L.control.zoom({position:'bottomleft'}).addTo(map);
   const bounds = L.latLngBounds(plotted.map(b => [b.latitude,b.longitude]));
@@ -222,13 +223,13 @@ async function satelliteMap(element, branches, onSelect, onMode, state, prefix =
         html:`<span class="satellite-pin">${group.entries[0].index}${group.entries.length > 1 ? `<small class="satellite-pin-count">+${group.entries.length - 1}</small>` : ''}</span>`})
     }).addTo(map);
     const select = branch => {
-      selectedBranch = branch.branchCode;
-      for (const item of markers) item.marker.getElement()?.classList.toggle('is-selected', item.group.entries.some(entry => entry.branch.branchCode === selectedBranch));
+      selectedBranch = branchId(branch);
+      for (const item of markers) item.marker.getElement()?.classList.toggle('is-selected', item.group.entries.some(entry => branchId(entry.branch) === selectedBranch));
       onSelect(branch);
     };
     marker.bindPopup(popupContent(group, select), {maxWidth:280, minWidth:210});
     marker.on('click', () => select(group.entries[0].branch));
-    marker.getElement()?.classList.toggle('is-selected', group.entries.some(entry => entry.branch.branchCode === selectedBranch));
+    marker.getElement()?.classList.toggle('is-selected', group.entries.some(entry => branchId(entry.branch) === selectedBranch));
     markers.push({marker, group});
   }
   onMode(`${prefix}Loading satellite imagery…`);
@@ -242,7 +243,7 @@ async function googleMap(element, branches, configuration, onSelect, onMode, sta
   element.replaceChildren();
   const map = new maps.Map(element, {center:{lat:30.3,lng:69.3}, zoom:5, mapId:configuration.mapId || 'DEMO_MAP_ID', mapTypeId:'hybrid', streetViewControl:false, fullscreenControl:false, mapTypeControl:true, mapTypeControlOptions:{mapTypeIds:['hybrid','roadmap'], position:maps.ControlPosition.BOTTOM_LEFT}, zoomControlOptions:{position:maps.ControlPosition.RIGHT_BOTTOM}});
   const plotted = branches.filter(coordinates);
-  const key = plotted.map(b => `${b.branchCode}:${b.latitude},${b.longitude}`).join('|');
+  const key = plotted.map(b => `${branchId(b)}:${b.latitude},${b.longitude}`).join('|');
   const bounds = new maps.LatLngBounds();
   plotted.forEach(b => bounds.extend({lat:b.latitude,lng:b.longitude}));
   const fit = () => { if (plotted.length > 1) map.fitBounds(bounds,55); else {map.setCenter(bounds.getCenter());map.setZoom(13);} };
@@ -257,8 +258,8 @@ async function googleMap(element, branches, configuration, onSelect, onMode, sta
     const marker = new AdvancedMarkerElement({map,position:{lat:group.latitude,lng:group.longitude},title:groupLabel(group),gmpClickable:true});
     marker.append(pin);
     marker.addListener('click', () => {
-      selectedBranch = group.entries[0].branch.branchCode; onSelect(group.entries[0].branch);
-      info.setContent(popupContent(group, branch => { selectedBranch = branch.branchCode; onSelect(branch); }));
+      selectedBranch = branchId(group.entries[0].branch); onSelect(group.entries[0].branch);
+      info.setContent(popupContent(group, branch => { selectedBranch = branchId(branch); onSelect(branch); }));
       info.open({map, anchor:marker});
     });
     markers.push(marker);

@@ -16,7 +16,9 @@ function completeFsr() {
   return Object.fromEntries(fields.filter(field => field.type !== 'auto').map(field => [
     field.key,
     Array.isArray(field.type) ? field.type[0]
-      : field.type === 'number' ? (field.key === 'currentHours' ? 1200 : 10)
+      : field.type === 'date' ? '2026-10-22'
+        : field.type === 'time' ? '09:30'
+        : field.type === 'number' ? (field.key === 'currentHours' ? 1200 : field.key.toLowerCase().includes('powerfactor') ? 0.8 : 10)
         : field.type === 'attachment' ? photograph
           : `${field.label}: recorded at site`
   ]));

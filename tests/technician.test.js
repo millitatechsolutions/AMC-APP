@@ -8,7 +8,7 @@ import { createApp } from '../src/server.js';
 import { fields } from '../src/fields.js';
 const tech=users.find(u=>u.id==='tech-demo'),ho=users[0],other={id:'unassigned-tech',role:'technician'};
 const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
-const complete=()=>Object.fromEntries(fields.filter(f=>f.type!=='auto').map(f=>[f.key,Array.isArray(f.type)?f.type[0]:f.type==='number'?(f.key==='currentHours'?1200:10):f.type==='attachment'?image:'None']));
+const complete=()=>Object.fromEntries(fields.filter(f=>f.type!=='auto'&&!f.optional).map(f=>[f.key,Array.isArray(f.type)?f.type[0]:f.type==='number'?(f.key==='currentHours'?1200:10):f.type==='attachment'?image:'None']));
 test('Visit start is idempotent, scoped and does not count as a performed FSR',()=>{
  const store=createStore(':memory:');try{
   const visit=store.visible(tech)[0];assert.throws(()=>store.start(ho,visit.id),e=>e.status===403);assert.throws(()=>store.start(other,visit.id),e=>e.status===403);
