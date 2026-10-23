@@ -79,12 +79,17 @@ export function createInventory(db, { companyName = 'PowerVision Systems Pvt Ltd
   const audit = (user, action, entity, at, detail) => {
     if (hasAudit) run('INSERT INTO audit(actor,action,entity,at,detail) VALUES(?,?,?,?,?)', user.id, action, entity, at, JSON.stringify(detail));
   };
-  const isManager = user => user?.role === 'ho' || user?.role === 'vendor' && [companyName, 'Demo AMC Services'].includes(user.vendor);
+  const companyVendor = user => [companyName, 'Demo AMC Services'].includes(user?.vendor);
+  const isManager = user => user?.portal === undefined
+    ? user?.role === 'ho' || user?.role === 'vendor' && companyVendor(user)
+    : user.status === 'active' && user.portal === 'powervision' && ['ho', 'vendor'].includes(user.role) && companyVendor(user);
+  const isTechnician = user => user?.role === 'technician'
+    && (user.portal === undefined || user.status === 'active' && user.portal === 'technician' && companyVendor(user));
   const manager = user => {
     if (!isManager(user)) fail('Only PowerVision management can manage inventory', 403);
   };
   const reader = user => {
-    if (!isManager(user) && user?.role !== 'technician') fail('Inventory catalogue access denied', 403);
+    if (!isManager(user) && !isTechnician(user)) fail('Inventory catalogue access denied', 403);
   };
   const itemRow = id => {
     if (typeof id !== 'string' || !id) fail('An inventory item is required');
@@ -209,7 +214,7 @@ export function createInventory(db, { companyName = 'PowerVision Systems Pvt Ltd
     // The caller must already hold BEGIN IMMEDIATE for the FSR, its immutable
     // revision, these movements and the stock balance to commit together.
     applyUsage(user, { visit, fsrNumber, revision, previousUsage = [], usage = [] }) {
-      if (user?.role !== 'technician' || visit?.technicianId !== user.id) fail('Only the assigned technician can record FSR inventory usage', 403);
+      if (!isTechnician(user) || visit?.technicianId !== user.id) fail('Only the assigned technician can record FSR inventory usage', 403);
       if (!db.isTransaction) fail('FSR inventory usage requires an active transaction', 409);
       const current = normalizeUsage(usage);
       if (!Array.isArray(previousUsage) || previousUsage.length > 50) fail('Invalid prior FSR inventory usage');

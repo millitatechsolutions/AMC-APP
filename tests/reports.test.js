@@ -151,7 +151,7 @@ test('UBL is isolated by client while legacy demo records remain visible to the 
 });
 
 test('Detailed report HTTP endpoints share technician submissions with both offices and enforce client access', async () => {
-  const { server, store } = createApp({ dbPath: ':memory:' });
+  const { server, store } = createApp({ dbPath: ':memory:', demoMode: true });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = (path, cookie, input) => fetch(base + path, {

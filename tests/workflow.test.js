@@ -46,7 +46,7 @@ test('Only acknowledged OOW payable; server asset rate wins and data survives re
  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('HTTP session, role enforcement, CSV export, static UI and functional submit/review',async()=>{
- const {server}=createApp({dbPath:':memory:'});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ const {server}=createApp({dbPath:':memory:',demoMode:true});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
  const login=async id=>{const r=await fetch(base+'/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:id})});assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0];};
  const post=async(path,cookie,input)=>fetch(base+path,{method:'POST',headers:{cookie,'Content-Type':'application/json'},body:JSON.stringify(input)});
  try{

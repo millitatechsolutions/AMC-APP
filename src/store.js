@@ -56,12 +56,29 @@ export function createStore(path) {
  const audit=(actor,action,entity,detail={})=>run('INSERT INTO audit(actor,action,entity,at,detail) VALUES(?,?,?,?,?)',actor.id,action,entity,new Date().toISOString(),JSON.stringify(detail));
  const transaction=(fn)=>{db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}};
  const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
+ const registered=user=>user?.portal!==undefined;
+ const active=user=>!registered(user)||user.status==='active';
+ const companyManager=user=>active(user)&&['ho','vendor'].includes(user.role)&&(!registered(user)||user.portal==='powervision'&&vendorName(user.vendor)===COMPANY_NAME);
+ const assetOf=visit=>read('assets').find(asset=>asset.id===visit.assetId);
  const clientOf=visit=>visit.client || assetClient(read('assets').find(a=>a.id===visit.assetId));
+ const companyOwns=(vendor,visit)=>vendorName(visit.vendor)===vendorName(vendor)&&vendorName(assetOf(visit)?.vendor)===vendorName(vendor);
  const matchesClient=(user,visit)=>{
   const asset=read('assets').find(a=>a.id===visit.assetId),client=clientOf(visit),owner=assetClient(asset);
   return client===user.client && (!owner || owner===client);
  };
- const accessible=(user,visit)=>user.role==='ho' || user.role==='client_ho' && matchesClient(user,visit) || user.role==='branch' && visit.branchCode===user.branchCode && matchesClient(user,visit) || user.role==='technician' && visit.technicianId===user.id || user.role==='vendor' && vendorName(visit.vendor)===vendorName(user.vendor);
+ const accessible=(user,visit)=>{
+  if(registered(user)) {
+   if(!active(user))return false;
+   // Historical HBL demo records are retained in storage, but are no longer
+   // presented as current work in the corrected UBL application.
+   if(/^GEN-HBL-/.test(String(visit.assetId??''))||/^DEMO-HBL-ENGINE-\d+$/.test(String(assetOf(visit)?.engineSerial??'')))return false;
+   if(user.portal==='powervision')return companyManager(user)&&companyOwns(COMPANY_NAME,visit);
+   if(user.portal==='ubl')return user.client==='UBL'&&(['client_ho','branch'].includes(user.role))&&matchesClient(user,visit)&&(user.role!=='branch'||visit.branchCode===user.branchCode);
+   if(user.portal==='technician')return user.role==='technician'&&vendorName(user.vendor)===COMPANY_NAME&&companyOwns(COMPANY_NAME,visit)&&visit.technicianId===user.id;
+   return false;
+  }
+  return user.role==='ho'||user.role==='client_ho'&&matchesClient(user,visit)||user.role==='branch'&&visit.branchCode===user.branchCode&&matchesClient(user,visit)||user.role==='technician'&&visit.technicianId===user.id||user.role==='vendor'&&vendorName(visit.vendor)===vendorName(user.vendor);
+ };
  // Adapt legacy demo metadata on reads without rewriting immutable FSR snapshots.
  const present=visit=>({...visit,client:clientOf(visit),vendor:vendorName(visit.vendor)});
  if(!read('assets').length) transaction(()=>{
@@ -74,44 +91,38 @@ export function createStore(path) {
      run('INSERT INTO visits VALUES(?,?,?,?,?)',visit.id,asset.id,month,visit.status,JSON.stringify(visit));
    }
  });
- // Add HBL examples once to a recognizable demonstration database. Real or
- // mixed datasets never receive invented client assignments or service visits.
- if(!db.prepare('SELECT name FROM app_migrations WHERE name=?').get('hbl-demo-v1')) {
-  const existing=read('assets');
-  if(existing.length && existing.every(a=>/^DEMO-(?:HBL-)?ENGINE-\d+$/.test(String(a.engineSerial??'')))) transaction(()=>{
-   if(db.prepare('SELECT name FROM app_migrations WHERE name=?').get('hbl-demo-v1'))return;
-   const now=new Date().toISOString().slice(0,10),month=now.slice(0,7);
-   for(let i=1;i<=3;i++) {
-    const branchCode=String(i).padStart(4,'0'),id=`GEN-HBL-${branchCode}`;
-    if(db.prepare('SELECT id FROM assets WHERE id=?').get(id))continue;
-    const asset={id,client:'HBL',branchCode,branchName:['Lahore','Karachi','Islamabad'][i-1]+' HBL Demo Branch',siteAddress:'Synthetic HBL demo site '+branchCode,region:['Central','South','North'][i-1],vendor:COMPANY_NAME,warranty:i===1?'Warranty':'OOW',rate:i===1?0:3500,installationYear:i===1?2026:2023,lastVisitDate:dateAdd(now,-30),lastServiceDate:dateAdd(now,-90),lastServiceHours:1000,engineSerial:`DEMO-HBL-ENGINE-${i}`,model:'Demo 100',rating:100,latitude:[31.5204,24.8607,33.6844][i-1],longitude:[74.3587,67.0011,73.0479][i-1],locationSource:'Demo city location'};
-    run('INSERT INTO assets VALUES(?,?)',id,JSON.stringify(asset));
-    const visit={id:`VIS-HBL-${month}-${branchCode}`,assetId:id,client:'HBL',branchCode,branchName:asset.branchName,region:asset.region,vendor:asset.vendor,warranty:asset.warranty,rate:asset.rate,month,dueDate:dateAdd(now,i-2),technicianId:'hbl-tech-demo',status:'scheduled',fsr:null,acknowledgement:null};
-    run('INSERT INTO visits VALUES(?,?,?,?,?)',visit.id,id,month,visit.status,JSON.stringify(visit));
-   }
-   run('INSERT INTO app_migrations(name,applied_at) VALUES(?,?)','hbl-demo-v1',new Date().toISOString());
-  });
- }
+ // Earlier versions added HBL demo rows. They are deliberately neither seeded
+ // again nor rewritten/deleted: existing FSR snapshots and stock history remain.
  const stock=createInventory(db,{companyName:COMPANY_NAME});
  const save=visit=>run('UPDATE visits SET status=?,payload=? WHERE id=?',visit.status,JSON.stringify(visit),visit.id);
  const visible=user=>read('visits').filter(v=>accessible(user,v)).map(present);
  const get=(user,id)=>{const v=read('visits').find(v=>v.id===id);if(!v)fail('Visit not found',404);if(!accessible(user,v))fail('Access denied',403);return present(v);};
  const history=(user,id)=>{get(user,id);return db.prepare('SELECT id,payload FROM fsr_versions WHERE visit_id=? ORDER BY id').all(id).map(r=>({revision:r.id,fsr:JSON.parse(r.payload)}));};
- const payments=(user,month)=>{if(!['ho','vendor'].includes(user.role))fail('Access denied',403);return visible(user).filter(v=>v.month===month).map(v=>({visitId:v.id,fsrId:v.fsr?.fsrNumber??'',branchCode:v.branchCode,assetId:v.assetId,vendor:v.vendor,month:v.month,warranty:v.warranty,status:v.status,eligible:v.status==='acknowledged' && v.warranty==='OOW',rate:v.rate,payable:v.status==='acknowledged' && v.warranty==='OOW'?v.rate:0,acknowledgedBy:v.acknowledgement?.userId??'',acknowledgedAt:v.acknowledgement?.at??''}));};
+ const payments=(user,month)=>{if(!companyManager(user))fail('Access denied',403);return visible(user).filter(v=>v.month===month).map(v=>({visitId:v.id,fsrId:v.fsr?.fsrNumber??'',branchCode:v.branchCode,assetId:v.assetId,vendor:v.vendor,month:v.month,warranty:v.warranty,status:v.status,eligible:v.status==='acknowledged' && v.warranty==='OOW',rate:v.rate,payable:v.status==='acknowledged' && v.warranty==='OOW'?v.rate:0,acknowledgedBy:v.acknowledgement?.userId??'',acknowledgedAt:v.acknowledgement?.at??''}));};
+ const accountIdentity=id=>{
+  if(typeof id!=='string'||!id)return null;
+  if(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='auth_accounts'").get()) {
+   const account=db.prepare('SELECT id,name,employee_id FROM auth_accounts WHERE id=?').get(id);
+   if(account)return {id:account.id,name:account.name,employeeId:account.employee_id};
+  }
+  const legacy=users.find(user=>user.id===id);
+  return legacy?{id:legacy.id,name:legacy.name,employeeId:legacy.employeeId}:null;
+ };
+ const presentAudit=entry=>{
+  const detail=typeof entry.detail==='string'?JSON.parse(entry.detail):entry.detail;
+  const actor=accountIdentity(entry.actor);
+  return {...entry,detail,actorName:actor?.name??entry.actor,actorEmployeeId:actor?.employeeId??''};
+ };
  const verification=id=>{
   const revision=db.prepare('SELECT id FROM fsr_versions WHERE visit_id=? ORDER BY id DESC LIMIT 1').get(id)?.id??null;
   const entries=db.prepare('SELECT id,payload FROM fsr_verifications WHERE visit_id=? ORDER BY id DESC').all(id).map(row=>({id:row.id,...JSON.parse(row.payload)}));
   return {revision,company:entries.find(e=>e.revision===revision&&e.scope==='company')??null,client:entries.find(e=>e.revision===revision&&e.scope==='client')??null,history:entries};
  };
- const companyOwns=(vendor,visit)=>{
-  const asset=read('assets').find(a=>a.id===visit.assetId);
-  return vendorName(visit.vendor)===vendor && vendorName(asset?.vendor)===vendor;
- };
  const report=(user,id)=>{
   const visit=get(user,id),asset=presentAsset(read('assets').find(a=>a.id===visit.assetId));
-  const identity=users.find(u=>u.id===(visit.fsr?.technicianId??visit.technicianId));
+  const identity=accountIdentity(visit.fsr?.technicianId??visit.technicianId);
   const technician={id:visit.fsr?.technicianId??visit.technicianId,name:visit.fsr?.technicianName??identity?.name??'Assigned technician',employeeId:visit.fsr?.technicianEmployeeId??identity?.employeeId??'Not recorded'};
-  const activity=db.prepare('SELECT * FROM audit WHERE entity=? ORDER BY id').all(id).map(a=>({...a,detail:JSON.parse(a.detail)}));
+  const activity=db.prepare('SELECT * FROM audit WHERE entity=? ORDER BY id').all(id).map(presentAudit);
   return {visit,asset,technician,company:{name:visit.vendor||'Not recorded'},client:{name:visit.client||'Not recorded'},history:history(user,id),verification:verification(id),activity};
  };
  return {db,visible,get,payments,assets:user=>{const assignedIds=new Set(visible(user).map(v=>v.assetId));return read('assets').filter(a=>assignedIds.has(a.id)).map(presentAsset);},
@@ -120,9 +131,11 @@ export function createStore(path) {
    createInventoryItem:(user,input)=>stock.createItem(user,input),
    receiveInventory:(user,input)=>stock.receive(user,input),
    report,
-   amcReport(user,{month=new Date().toISOString().slice(0,7),client=user.client??'HBL'}={}) {
+   amcReport(user,{month=new Date().toISOString().slice(0,7),client=user.client||'UBL'}={}) {
     if(!['ho','vendor','client_ho'].includes(user.role))fail('Only company management and client head office can access AMC reports',403);
+    if(!active(user)||registered(user)&&!companyManager(user)&&!(user.portal==='ubl'&&user.role==='client_ho'&&user.client==='UBL'))fail('This account cannot access AMC reports',403);
     if(typeof month!=='string'||!/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(month))fail('Choose a valid report month (YYYY-MM)',422);
+    if(registered(user)&&client!=='UBL')fail('This client is outside your report scope',403);
     if(typeof client!=='string'||!['UBL','HBL'].includes(client))fail('Unsupported AMC report client',422);
     if(user.role==='client_ho'&&client!==user.client)fail('This client is outside your report scope',403);
     const assetsById=new Map(read('assets').map(asset=>[asset.id,asset]));
@@ -134,6 +147,25 @@ export function createStore(path) {
     const reports=owned.map(visit=>({visit,asset:presentAsset(assetsById.get(visit.assetId))}));
     return {columns:REPORT_COLUMNS,rows:buildAmcRows(reports),month,client};
    },
+   assignTechnician(user,id,input) {return transaction(()=>{
+    if(user.portal!=='powervision'||user.admin!==true||!companyManager(user))fail('Only a PowerVision administrator can assign technicians',403);
+    const visit=get(user,id);
+    if(!companyOwns(COMPANY_NAME,visit))fail('This visit is outside PowerVision ownership',403);
+    const hasDraft=db.prepare('SELECT 1 AS found FROM technician_drafts WHERE visit_id=? LIMIT 1').get(id);
+    const hasFsr=db.prepare('SELECT 1 AS found FROM fsr_versions WHERE visit_id=? LIMIT 1').get(id);
+    if(visit.status!=='scheduled'||visit.startedAt||visit.fsr||hasDraft||hasFsr)fail('Only scheduled visits without a start, draft or submitted FSR can be reassigned',409);
+    if(!input||typeof input!=='object'||Array.isArray(input)||typeof input.technicianId!=='string'||!input.technicianId.trim())fail('Choose an active technician account',422);
+    const hasAccounts=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='auth_accounts'").get();
+    const technician=hasAccounts?db.prepare('SELECT id,name,employee_id,portal,role,vendor,status FROM auth_accounts WHERE id=?').get(input.technicianId):null;
+    if(!technician)fail('Technician account not found',404);
+    if(technician.status!=='active'||technician.portal!=='technician'||technician.role!=='technician'||vendorName(technician.vendor)!==COMPANY_NAME)fail('Choose an active PowerVision technician account',422);
+    if(visit.technicianId===technician.id)return visit;
+    const previousTechnicianId=visit.technicianId??null;
+    visit.technicianId=technician.id;visit.assignedAt=new Date().toISOString();visit.assignedBy=user.id;
+    save(visit);
+    audit(user,'visit.technician_assigned',id,{previousTechnicianId,technicianId:technician.id,technicianName:technician.name,technicianEmployeeId:technician.employee_id});
+    return visit;
+   });},
    verify(user,id,input) {return transaction(()=>{
     const visit=get(user,id);
     const company=(user.role==='ho'&&companyOwns(COMPANY_NAME,visit))||(user.role==='vendor'&&companyOwns(vendorName(user.vendor),visit));
@@ -215,10 +247,10 @@ export function createStore(path) {
     if(!['acknowledged','unacknowledged'].includes(decision))fail('Invalid decision');
     if(decision==='unacknowledged' && (!reason || !String(reason).trim()))fail('A reason is required to unacknowledge',422);
     if(reason && (typeof reason!=='string'||reason.length>4000))fail('Invalid reason',422);
-    v.status=decision;v.acknowledgement={userId:user.id,employeeId:user.employeeId,at:new Date().toISOString(),decision,reason:String(reason??'').trim(),fsrId:v.fsr.fsrNumber};save(v);audit(user,`fsr.${decision}`,id,v.acknowledgement);return v;
+    v.status=decision;v.acknowledgement={userId:user.id,name:user.name,employeeId:user.employeeId,reviewer:{id:user.id,name:user.name,employeeId:user.employeeId??''},client:v.client,at:new Date().toISOString(),decision,reason:String(reason??'').trim(),fsrId:v.fsr.fsrNumber};save(v);audit(user,`fsr.${decision}`,id,v.acknowledgement);return v;
    });},
    history,
-   audit(user) {const ids=new Set(visible(user).map(v=>v.id)),manager=user.role==='ho'||user.role==='vendor'&&vendorName(user.vendor)===COMPANY_NAME;return db.prepare('SELECT * FROM audit ORDER BY id DESC').all().filter(a=>ids.has(a.entity)||manager&&a.action.startsWith('inventory.')).map(a=>({...a,detail:JSON.parse(a.detail)}));},
+   audit(user) {const ids=new Set(visible(user).map(v=>v.id)),manager=companyManager(user)&&(!registered(user)?user.role==='ho'||vendorName(user.vendor)===COMPANY_NAME:true);return db.prepare('SELECT * FROM audit ORDER BY id DESC').all().filter(entry=>ids.has(entry.entity)||manager&&entry.action.startsWith('inventory.')).map(presentAudit);},
    close(){db.close();}
  };
 }

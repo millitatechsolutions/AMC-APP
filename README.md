@@ -1,72 +1,67 @@
-# PowerVision Systems Pvt Ltd — Genset AMC Management
+# PowerVision Systems Pvt Ltd — UBL Genset AMC
 
-A working development foundation based on the uploaded **Genset Digital AMC Management Requirements** (UBL, 10 pages). This first increment implements the service-report → branch-review → payment-eligibility workflow with synthetic records. It is not the complete contracted solution or a production banking deployment.
+Separate account-protected workspaces for **PowerVision Head Office**, **UBL Office** and **Technicians**, with one shared service-report workflow. PowerVision registers technicians and office staff; the UBL administrator registers the bank's team. Inventory belongs to the PowerVision portal.
 
-## Beginner quick start
+## Start here
 
-Read [Start here — no programming experience needed](docs/beginner-guide.md). Windows users can double-click `START-AMC.bat`; macOS/Linux users can run `bash start-amc.sh`. You can also run `node scripts/start.mjs` on either platform. These helpers install, check and start the project without resetting saved records.
-
-## Run
-
-Requires **Node.js 24 or newer** (built-in SQLite), npm, and no external database or credentials.
+Requires **Node.js 24 or newer** and npm. Windows: extract the project and double-click `START-AMC.bat`. macOS/Linux: run `bash start-amc.sh`. Both use:
 
 ```sh
-cd /workspace/AMC-APP
+node scripts/start.mjs
+```
+
+The starter installs the locked dependencies, checks the source, runs the tests and starts a local server on a free port. Use the port printed in the terminal on that same computer. Keep the terminal open. The cloud onboarding screen does not provide a localhost browser preview.
+
+[Beginner instructions](docs/beginner-guide.md) · [Registration and portal access](docs/portal-access.md)
+
+![PowerVision and UBL portal selection](docs/screenshots/portal-chooser.png)
+
+## First registration
+
+1. Open the application and select **Set up PowerVision**. Create your own owner account with your name, email, employee ID and a password of 12–128 characters. No default password or account is supplied.
+2. In **PowerVision Head Office → People & Technicians**, register a technician or a PowerVision colleague. Copy the generated invitation link and provide it to that person. The link expires after 48 hours and is used once to set their password. Email/SMS delivery is not configured or sent automatically.
+3. Invite the first **UBL administrator** from PowerVision. Once activated, that administrator manages UBL office staff and branch reviewers through **UBL Office → UBL Team**. PowerVision cannot reset or disable active UBL accounts.
+4. Assign an unstarted service visit to an active technician from the PowerVision visit register. The technician then signs in to the separate technician portal and sees only assigned work.
+
+The owner setup becomes unavailable after the first account is created. Additional users cannot choose their own role, bank or portal through public registration. Accounts can be disabled, enabled and reset by their responsible administrator; disabling/resetting revokes sessions. Users can change their own password from the account menu.
+
+## Workspaces
+
+| Workspace | Access |
+| --- | --- |
+| PowerVision Head Office | PowerVision service operations, company FSRs, stock/inventory and payment reconciliation; administrators also manage staff/technicians and assignments |
+| UBL Office | UBL assets, service progress, detailed FSRs, paper-image verification and the AMC Excel report; UBL administrators manage UBL accounts |
+| UBL branch reviewer | Only the assigned UBL branch's records and acknowledgment actions |
+| Technician | Only assigned visits, saved drafts, service readings, material usage, evidence and client/company responses |
+
+Portal and record permissions are checked by the API. A different URL or request does not grant another portal's access. UBL cannot read company stock balances, receipts, movements or payment reconciliation. It still receives the material quantities used in its own FSR, as part of the shared service evidence.
+
+## Service workflow
+
+The technician records the service form and completed signed/stamped paper FSR image. Both UBL and PowerVision receive the same immutable submitted revision. Each can manually compare the image against the entered values and record a separate verification result. The matching branch acknowledges the visit or requests corrections. Stock deducts on FSR submission; a correction changes only the quantity difference. Only acknowledged out-of-warranty visits qualify for the stored AMC payment rate.
+
+- [Paper FSR V02 and UBL reporting](docs/fsr-v02-and-ubl-reports.md): all 225 fields, uploads, comparison and revision behavior.
+- [AMC Excel sources](docs/amc-excel-column-mapping.md): all 69 uploaded-template columns, typed values, blanks and exact source mapping.
+- [Inventory management](docs/inventory-management.md): catalogue, receipts, low-stock alerts and FSR-linked movements.
+- [Technician app](docs/technician-app.md): guided form, server drafts and mobile use.
+- [Map and overview](docs/branch-map-and-overview.md): satellite imagery, demo coordinates and progress counts.
+- [Architecture and API](docs/architecture.md): authentication, data tables, scope checks and endpoints.
+
+## Local development and data
+
+```sh
 npm ci --ignore-scripts
 npm run check
 npm test
 npm start
 ```
 
-The local server uses port 3000 and binds to loopback. `npm run dev` restarts when server files change. `PORT` and `AMC_DB_PATH` are optional runtime overrides. The default persistent database is `data/amc.sqlite`, ignored by Git. It contains synthetic data and submitted evidence; do not commit it. Stop with Ctrl+C. Sessions reset on restart; records persist.
+The server binds to loopback. The default database is ignored `data/amc.sqlite`; optional `.env` supplies map configuration. **Preserve both when upgrading.** Extract a new download into a fresh folder and copy the old `data` folder and optional `.env` before its first start. Never replace two existing databases blindly.
 
-This cloud task is already isolated. Use the existing checkout; do not create Git worktrees unless explicitly requested.
+Fresh data contains 12 clearly synthetic UBL assets, four warranty and eight out of warranty. Real branches, GPS locations and fleet master data have not been imported. Earlier mistaken HBL demo records are preserved on disk but excluded from registered portal views; no new HBL records are seeded. Old submitted evidence and stock history are retained. Select the stored visit month if the calendar changes.
 
-## Try the workflow
+Passwords use salted scrypt hashes, and invitation/session tokens are stored as hashes. Session cookies are HttpOnly and SameSite, with separate portal bindings; request-origin and local-host checks are enforced. Legacy selectable demo identities are available only through an explicit in-process automated-test fixture option; normal startup never enables them.
 
-1. Select **Assigned Technician** using the demo workspace selector. Open AMC visits and choose **Complete FSR** for branch 0005 (OOW) or branch 0001 (warranty).
-2. Complete all applicable fields and attach before/after/stamped-FSR images. Select values from the checklists; enter “None” when an issue, part, repair or action does not apply. Every applicable value is validated again by the API.
-3. Select the corresponding **UBL Branch 0005 Reviewer (AMC)** or **UBL Branch 0001 Reviewer**. Open the submitted record and acknowledge it, or unacknowledge it with a reason.
-4. Select **PowerVision Head Office** or **PowerVision Management**. View reconciliation and export the monthly CSV. Acknowledged OOW visits are PKR 3,500; warranty, pending and rejected visits are PKR 0.
-5. View audit history. A rejected FSR may be resubmitted by its assigned technician; earlier submissions remain stored as immutable revisions and available through the history API.
+The working local account system is not a hosted bank deployment. Shared phone use still requires reviewed HTTPS hosting and operational identity, backup and recovery arrangements. No public website, enterprise SSO/MFA or native APK has been deployed. The UBL landing page uses a local text wordmark and blue/cyan theme; an official downloaded bank logo was unavailable from the cloud network. PowerVision's logo comes from the user-provided FSR header.
 
-The 15 synthetic assets include 12 UBL assets (four warranty, eight OOW) and three HBL assets (one warranty, two OOW). These are demonstration data, not the document's 2,200 real gensets. Initial schedules belong to the month when the database was created; select that month after the calendar rolls over. Automated recurrence and master-data import are future work.
-
-## Included
-
-- PowerVision-branded responsive company, UBL head-office, technician and branch workspaces with filters, asset register and detailed FSR reports.
-- Assigned UBL branch satellite map beside AMC, warranty and total cards; each shows total/performed/remaining from technician submissions, with automatic checks every 15 seconds. Esri satellite imagery requires internet; optional Google Maps hybrid mode uses a browser key. A labelled local geographic fallback remains available.
-- Structured FSR schema corresponding to the section 12 table, including phase readings and conditional issue fields; required before/after/stamped-FSR images.
-- Assignment, branch and client access checks enforced server-side; UBL head office sees UBL records and PowerVision management sees its vendor records.
-- Server-computed identifiers, dates, delay status, PM flag and authoritative warranty/rates.
-- Atomic workflow transitions, persistent SQLite storage, FSR revision history and actor/timestamp audit entries.
-- Monthly visit-level payment report and CSV with FSR/acknowledgement traceability.
-- PowerVision inventory catalogue, opening stock, receipts, low-stock indicators and immutable FSR-linked material movements. Technician submissions deduct stock; corrections adjust only the quantity difference.
-- Functional tests covering validation, access isolation, rejection/resubmission, eligibility, duplicate review, audit, persistence and HTTP sessions.
-- Full paper FSR V02 transcription, signed/stamped image comparison, independent company/client manual verification, isolated HBL demo workspaces, and a real 69-column AMC Excel export with source mapping.
-
-## Demo security boundary
-
-The workspace selector deliberately permits selecting any demo identity without a password. It is **not production authentication**. The executable refuses non-loopback binding. Do not enter real customer or banking data, deploy publicly, or expose it through a tunnel. Session cookies are HttpOnly and SameSite; basic origin checks, CSP and role checks support local development but do not replace production identity/security review.
-
-[Requirements analysis and delivery roadmap](docs/requirements-analysis.md) explains ambiguities and remaining requirements. [Architecture and API](docs/architecture.md) describes the implemented structure and future production architecture.
-
-[Branch map, overview counting rules and optional Google Maps setup](docs/branch-map-and-overview.md).
-
-[Detailed reports shared between UBL and PowerVision](docs/shared-fsr-reports.md) explains all fields, photos, revision history and printing.
-
-[Inventory management and FSR material usage](docs/inventory-management.md) explains company stock controls and technician entry.
-
-[Paper FSR V02, HBL verification and Excel reporting](docs/fsr-v02-and-hbl-reports.md) explains the new workflow. [All 69 Excel columns and their data sources](docs/amc-excel-column-mapping.md).
-
-## Overview preview
-
-![Assigned branch map beside AMC, warranty and total service progress](docs/screenshots/overview.png)
-
-## Technician app
-
-Use **Technician app ↗** on the dashboard to open the dedicated `/technician/` application. It includes assigned visits, visit start, a guided FSR, server-saved resumable drafts, camera/gallery uploads, submitted reports and client responses. [Technician app guide and limitations](docs/technician-app.md).
-
-This is a mobile-ready web app with installable shell metadata, not a native Android APK. A shared phone deployment still requires hosted HTTPS and production authentication; the local demo is loopback-only.
-
-![Technician application home](docs/screenshots/technician-home.png)
+This cloud task is already isolated. Use the existing checkout rather than creating a Git worktree unless explicitly requested.

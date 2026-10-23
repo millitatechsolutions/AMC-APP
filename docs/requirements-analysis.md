@@ -53,6 +53,10 @@ No Android, offline, notification, Here4you integration, production security or 
 
 Calendar estimates and costs require approved integrations, team capacity and customer security decisions; they are not committed here.
 
-## Additional paper FSR and HBL references
+## Additional paper FSR and UBL references
 
-The later user-supplied FSR-V02.pdf is a blank PowerVision paper form, now represented by 150 optional fields alongside the original 75-field dictionary. The signed/stamped image is uploaded separately and compared manually by the responsible company/client, with immutable per-revision results. The supplied Report Format AMC.xlsx is a 69-column format reference; its UBL sample values are not HBL source data. HBL now has isolated demo workspaces and a real AMC XLSX export, while UBL support is retained. [Implementation walkthrough](fsr-v02-and-hbl-reports.md) and [column mapping](amc-excel-column-mapping.md).
+The later user-supplied FSR-V02.pdf is a blank PowerVision paper form, now represented by 150 optional fields alongside the original 75-field dictionary. The signed/stamped image is uploaded separately and compared manually by the responsible company/client, with immutable per-revision results. The supplied Report Format AMC.xlsx is a 69-column format reference; its UBL sample values are not live UBL source data. The active client is UBL; separate registered PowerVision, UBL and technician portals replace the earlier demo identity selector. [Implementation walkthrough](fsr-v02-and-ubl-reports.md) and [column mapping](amc-excel-column-mapping.md).
+
+## Registered portal update
+
+The latest user correction confirms UBL as the client. Owner setup, invite-only accounts, scoped company/bank administration, hashed credentials/tokens, session revocation and server-enforced portal/assignment checks are implemented for the local installation. PowerVision manages technician registration and assignments; inventory remains company-only. Enterprise SSO/MFA, reviewed shared HTTPS hosting and operational recovery are still deployment work. [Portal access](portal-access.md).

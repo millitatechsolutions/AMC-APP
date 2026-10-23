@@ -252,7 +252,7 @@ test('Invalid or insufficient FSR usage rolls back all stock, snapshots, drafts 
 });
 
 test('Inventory HTTP roles and competing technician submissions prevent overselling', async () => {
-  const { server, store } = createApp({ dbPath: ':memory:' });
+  const { server, store } = createApp({ dbPath: ':memory:', demoMode: true });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = (path, cookie, input) => fetch(base + path, {

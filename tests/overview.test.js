@@ -34,7 +34,7 @@ test('Branch map groups multiple assets, retains missing-location totals and nev
  const known={engineSerial:'DEMO-ENGINE-1',latitude:30,longitude:70};assert.deepEqual(withBranchLocation(known),known);
 });
 test('Polling API omits image bodies and detail/map data stays branch-scoped',async()=>{
- const {server,store}=createApp({dbPath:':memory:'});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ const {server,store}=createApp({dbPath:':memory:',demoMode:true});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
  try{
   const visit=store.visible(branch)[0];store.submit(tech,visit.id,fsr());
   const login=await fetch(base+'/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:branch.id})});const cookie=login.headers.get('set-cookie').split(';')[0];

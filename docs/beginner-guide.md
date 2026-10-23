@@ -1,113 +1,48 @@
 # Start here — no programming experience needed
 
-This project is a working demonstration of generator maintenance management. You can try the service-report, branch confirmation and payment process using made-up records. You do not need to create a database account, buy hosting or supply a password to run this demo.
+This application has separate PowerVision Head Office, UBL Office and Technician sign-in pages. The first owner creates an account; all other accounts are registered by the appropriate administrator.
 
-## What has already been done in Codex
+## Run on your computer
 
-- The application files have been created in `/workspace/AMC-APP`.
-- Node.js and npm are already available in this cloud machine.
-- A local database has been created automatically with synthetic records.
-- The application and workflow tests have been run.
-- Installation and startup instructions are saved in the environment configuration draft.
+1. Install **Node.js 24 or newer** from the official Node.js website. npm is included.
+2. On [GitHub](https://github.com/millitatechsolutions/AMC-APP), choose **Code → Download ZIP**. Extract it and open the project folder. Do not run it inside the ZIP.
+3. For an update, copy the old `data` folder and optional `.env` into the new extraction **before first start**, keeping the old folder as a backup.
+4. Windows: double-click `START-AMC.bat`. macOS/Linux: run `bash start-amc.sh` from a terminal in that folder.
+5. Wait for **The AMC demo is running**. Type the printed local address and port into your browser on that same computer. Keep the terminal open while using the app.
+6. Select **Set up PowerVision**, then create your owner account. Follow [Registration aur portal access](portal-access.md) to register technicians and set up UBL access.
+7. Stop the server with Ctrl+C in its terminal. Accounts and saved records remain available on the next start.
 
-To retain the cloud environment, review and save the draft in environment settings, then publish the environment. Publication saves the prepared environment; it does not publish the application as a public website. No public website or Android APK has been deployed. The project source repository is `millitatechsolutions/AMC-APP` on GitHub.
+The same starter can be run with `node scripts/start.mjs`. It installs dependencies, runs validation/tests, selects a free port from 3000–3010, and checks health without resetting records. The Windows wrapper has not been tested on a physical Windows machine in this Linux environment.
 
-The onboarding screen does not support viewing the local application through a browser preview. Typing the cloud machine's local address into your laptop's browser will not open it. To view and try it yourself now, use the download and local-computer steps below.
+## Try the full workflow
 
-## Run on your own computer
+1. PowerVision owner: register a technician under **People & Technicians** and give them the activation link. They set their password and sign in to Technician.
+2. PowerVision owner: invite the first UBL administrator. That administrator activates their account and registers the UBL branch reviewer for the branch to be tested.
+3. Assign an untouched visit to the active technician in PowerVision's service visit register. Branch 0005 is an out-of-warranty example; branch 0001 is a warranty example.
+4. Technician: start the assigned visit, complete the core sections, enter applicable paper FSR details, and upload completed paper/before/after images. Current running hours must not be below the saved 1,000-hour baseline. Use synthetic details for these demo assets.
+5. Technician: select any actually consumed inventory items and quantities, compare the paper image at review and submit. Drafts can be saved and resumed.
+6. UBL and PowerVision: open the same detailed report. Each can record a manual image-verification decision. The matching branch reviewer can acknowledge or request corrections.
+7. PowerVision: check inventory movements and reconciliation. Acknowledged out-of-warranty example visits are payable at the stored PKR 3,500 rate; warranty visits remain PKR 0.
+8. UBL Office: open **AMC Excel report**, choose the month and download the 69-column workbook. Its Data sources sheet explains where each column comes from.
 
-1. Install **Node.js version 24 LTS or newer** from the official Node.js website (`nodejs.org`). Use the installer for your Windows, macOS or Linux computer. npm is included with Node.js.
-2. Open `https://github.com/millitatechsolutions/AMC-APP`, select **Code → Download ZIP**, and extract the download. Open the extracted project folder (usually `AMC-APP-main`). Do not run the app while it is still inside the zip. You can also use the supplied **AMC-APP-starter.zip** if available.
-3. **Windows:** double-click `START-AMC.bat`. **macOS/Linux:** open a terminal in that folder and enter `bash start-amc.sh`.
-4. Wait for the message **“The AMC demo is running”**. Keep the terminal window open.
-5. In your browser's address bar, type `127.0.0.1:3000`. If the terminal reports a different port, use that number instead (for example, `127.0.0.1:3001`). This address works on the computer where you started the app.
-6. When you finish, return to the terminal and press **Ctrl+C**. To use it again, repeat step 3. Your local demo records are kept.
-
-Alternatively, from the extracted folder, one command performs installation, checks and startup:
-
-```sh
-node scripts/start.mjs
-```
-
-The starter checks Node.js, runs the existing validation/tests, and chooses a free local port between 3000 and 3010. It does not reset your database. The Windows and macOS/Linux starter files call the same script. The Windows wrapper is provided but has not been tested on Windows in this Linux environment.
-
-## Explore the screens
-
-The first screen now shows an assigned-branch map and three cards: **AMC**, **Warranty** and **Total**. Each card shows total, performed and remaining visits. Technician FSR submissions update these counts automatically within 15 seconds; use **Refresh now** for an immediate check. Select a branch pin to view its progress. Locations are illustrative demo locations. The satellite map uses Esri imagery without a Google key and requires internet. If imagery cannot load, a clearly labelled geographic fallback appears; [optional Google Maps connection instructions](branch-map-and-overview.md) explain how to use Google Maps later.
-
-Start with the selector labelled **Demo workspace** at the top of the screen:
-
-- **PowerVision Head Office:** see all demo assets, visit progress, audit history and payment reconciliation.
-- **UBL Head Office:** see UBL records, compare paper FSR images and export the UBL AMC workbook.
-- **HBL Head Office:** see HBL records, compare paper images and download the HBL AMC workbook.
-- **HBL Assigned Technician / HBL Branch 0001 Reviewer:** complete an HBL FSR and review that branch.
-- **Assigned Technician:** complete an assigned visit's Field Service Report (FSR), including technical readings and three images.
-- **UBL Branch 0001 Reviewer:** review the warranty visit for branch 0001.
-- **UBL Branch 0005 Reviewer (AMC):** review the out-of-warranty visit for branch 0005.
-- **PowerVision Management:** see that vendor's visits and payment statement.
-
-Both PowerVision workspaces also have **Inventory**. Add your stock items or receive stock there. In the technician FSR's **Issue / Job Management** step, choose used materials and enter quantities. Submitting deducts stock and stores the material record; saving a draft does not. UBL and PowerVision see those material details in the report. [Inventory walkthrough](inventory-management.md).
-
-The cloud instance may contain previously submitted demo examples at branch 0005. The download starts with fresh synthetic records, so that you can try the entire process yourself.
-
-## Try a complete example
-
-1. Select **Assigned Technician**, then **AMC visits**.
-2. Find branch **0005 / GEN-0005** and select **Complete FSR**.
-3. Fill in all applicable fields. These are fake records, so use example readings; the current running-hours value must be at least **1,000**. For an issue or repair that did not occur, write **None**. If you choose a complaint logged on Here4you, also enter a fake complaint reference. If the radiator condition is Average or Bad, fill in the corresponding explanation.
-4. Attach three JPEG, PNG or WebP images: before work, after work, and the stamped FSR. Each image must be at most 2 MB. For this demo use sample pictures containing no personal or bank information.
-5. Submit the FSR. It is now waiting for branch review.
-6. Select **UBL Branch 0005 Reviewer (AMC)**. Open the visit and choose **Acknowledge**. To reject instead, enter a reason and choose **Unacknowledge**.
-7. Select **PowerVision Head Office**, then **Reconciliation**. An acknowledged branch 0005 visit contributes **PKR 3,500**. A pending or rejected visit contributes **PKR 0**.
-8. Use **Export full month CSV** to download the statement. CSV opens in Excel or another spreadsheet app.
-
-You can also acknowledge a warranty visit at branch 0001: it still contributes **PKR 0**.
+Fresh data contains 12 synthetic UBL assets. Real branches and GPS coordinates have not been imported. Overview counts performed visits after FSR submission, and polls every 15 seconds. Satellite imagery needs internet; an explicitly labelled map fallback remains usable if it cannot load.
 
 ## Common problems
 
 | What you see | What to do |
-|---|---|
-| “node is not recognized” or “Install Node.js” | Install Node.js 24 or newer, close the terminal, and open it again. |
-| Setup stops with an error | Keep the error message and share it in this chat; do not delete project files. |
-| Browser says it cannot connect | Check that the terminal is still running, and use the port printed there. |
-| The app opens but no visits appear | Clear search/region/warranty/status filters. If the month changed since first startup, select the month when the records were created. |
-| Upload fails | Use JPEG, PNG or WebP; keep each image at or below 2 MB. |
-| An FSR cannot be submitted | The form/API explains the missing value. Complete all applicable fields, including conditional explanations. |
-| You cannot submit a visit again | A submitted record needs branch review. Only rejected records can be corrected and resubmitted. Acknowledged records are locked in this demo. |
+| --- | --- |
+| Node is not recognized | Install Node.js 24 or newer, close the old terminal and try again. |
+| Browser cannot connect | Keep the starter running and use the port printed there on the same computer. |
+| No technician visits | Activate the technician account and assign an unstarted visit from PowerVision. Check the stored visit month. |
+| Invitation expired | Ask the responsible administrator to reissue it. |
+| Wrong portal / access restricted | Use the sign-in page for your registered account. A URL change does not grant another portal's permission. |
+| Password forgotten | Ask your portal administrator for a reset link. |
+| FSR cannot submit | Complete the fields identified by the form and provide valid images up to 2 MB each. |
+| Submitted FSR cannot be edited | The matching branch must request a correction first. Acknowledged reports remain locked. |
+| Setup stops with an error | Keep the error message and share it for troubleshooting; do not delete the database. |
 
-## What the folders mean
+## Cloud environment
 
-- `public`: the screens shown in your browser.
-- `src`: the application server and business rules.
-- `tests`: automated checks of the workflow.
-- `docs`: requirements and instructions.
-- `scripts`: setup and startup helpers.
-- `data`: your local demo database, created automatically. Do not delete or upload it.
+The cloud setup runs a local service for development. Its local address belongs to that cloud machine; the onboarding screen does not provide a browser preview on your laptop. Use the download/local steps above to try the app yourself. To retain the prepared cloud setup, review/save environment settings and publish the environment. This does not publish the application as a public website.
 
-Keep this version for learning and demonstrations. Real user accounts, Android applications, offline use and bank-approved deployment are listed in `docs/requirements-analysis.md` as later milestones.
-
-## Get this update if you already downloaded an older version
-
-1. Stop the old app using Ctrl+C in its terminal window. Close all AMC terminal windows before copying database files.
-2. On GitHub, use Code → Download ZIP again, and extract the new version into a separate folder. Keep your old project folder as a backup.
-3. Before starting the new version for the first time, copy the entire `data` folder from your old project into the newly extracted project folder. This preserves your local demo visits and photos. If the new folder already has a `data` folder, keep both versions safely instead of overwriting either database; ask for help transferring records.
-4. If you already configured Google Maps, copy your local `.env` file separately into the new project folder; never upload it to GitHub.
-5. Double-click START-AMC.bat (Windows) or run bash start-amc.sh (macOS/Linux), then reload the browser.
-
-Node.js does not need to be installed again if version 24 or newer is already installed.
-
-## Try the dedicated technician app
-
-After upgrading and restarting the app, click **Technician app ↗** at the top of the dashboard. It opens in a new tab. Click **Open technician demo**, then **Visits**. Open a branch, start the visit, and follow the FSR sections using **Next**. Use **Save draft** or **Save & exit** to continue later. Once submitted, the same report appears in the client/company dashboard. Opening the technician tab keeps your dashboard's client/HO account separate.
-
-You can try the phone-style layout on your computer. Actual phone access is not available from your computer's local-only demo server. This version has no Android APK; [the technician guide](technician-app.md) explains the delivered web app and remaining phone deployment steps.
-
-## Open complete FSR reports in both offices
-
-Select **PowerVision Head Office** or **UBL Head Office**, then **Reports**. Open a submitted FSR to see all technical fields, before/after/stamped-FSR photos, technician details, timestamps, branch decision and saved revisions. **Print report** opens the browser print dialog. Both workspaces use the same technician submission. [Detailed report guide](shared-fsr-reports.md).
-
-## New paper FSR and HBL Excel report
-
-In the technician app, choose the correct assigned technician, complete the core sections, then copy any recorded paper FSR details using the section navigator. Upload a readable completed signed/stamped FSR photograph and compare it before submission. HBL and PowerVision can each open it beside the entered values and record Matched or Mismatch. Verification is manual.
-
-For Excel, select **HBL Head Office → AMC Excel report**, choose the month, and download Excel. It follows the supplied 69-column format and includes a second Data sources worksheet. Branch/master data comes from the saved asset records; measurements and job results come from the technician FSR; schedule and computed details come from the system. Pending readings remain blank. [Full walkthrough and upgrade instructions](fsr-v02-and-hbl-reports.md).
+[Portal access](portal-access.md) · [Paper FSR](fsr-v02-and-ubl-reports.md) · [Inventory](inventory-management.md) · [Technician app](technician-app.md)

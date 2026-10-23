@@ -1,6 +1,6 @@
 # AMC Excel report: template and data sources
 
-The export follows row 1 of the supplied **Report Format AMC.xlsx**: 69 columns, in the original A:BQ order, with the original header wording. It reports authorized application records; it does not import the sample UBL branch, vendors, employees, dates or measurements as live data. The same format can report HBL or UBL records when those records belong to the selected authorized workspace.
+The export follows row 1 of the supplied **Report Format AMC.xlsx**: 69 columns, in the original A:BQ order, with the original header wording. It reports authorized application records; it does not import the sample UBL branch, vendors, employees, dates or measurements as live data. Registered portals export only their authorized UBL records.
 
 ## What the supplied workbook contains
 
@@ -30,7 +30,7 @@ The second worksheet, **Data sources**, includes the selected client and month, 
 - Radiator cap, coolant level, canopy and safety option wording in the sample differs from some current application options. Export retains actual saved observations; it does not turn Good into Installed or invent a changed coolant level. The sample says both Closed and Resolved for complaint closure; export retains the actual `callStatus`.
 - Technician identity, start/submission timestamps, customer/branch decisions, before/after evidence, severity, stock usage and immutable revisions remain in the full portal report because the template has no separate columns for them.
 - Additional optional `PVS-FSR-V02` paper-form fields, including the separately entered paper FSR number, remain in the detailed FSR. The documented Visit Date preference is the only paper-form override of the original core mappings in this 69-column format.
-- The reference workbook is UBL-labelled and includes sample personal/vendor details. It supplies a format only; an HBL export must use actual HBL records from the application. A missing actual master record must remain missing instead of being filled with a sample.
+- The reference workbook is UBL-labelled and includes sample personal/vendor details. It supplies a format only; a UBL export must use actual UBL records from the application. A missing actual master record must remain missing instead of being filled with a sample.
 
 ## Column mapping
 

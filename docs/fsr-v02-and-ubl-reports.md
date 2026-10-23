@@ -1,10 +1,10 @@
-# Paper FSR V02, verification and HBL reporting
+# Paper FSR V02, verification and UBL reporting
 
-This update uses the supplied **FSR-V02.pdf** as a blank form reference and **Report Format AMC.xlsx** as an export format reference. The workbook's UBL example rows are not imported as HBL data. Neither attachment supplies application instructions or authority to contact anyone.
+This update uses the supplied **FSR-V02.pdf** as a blank form reference and **Report Format AMC.xlsx** as an export format reference. The workbook's example rows are format references, not imported live customer data. Neither attachment supplies application instructions or authority to contact anyone.
 
 ## Technician: record the paper FSR
 
-1. Open **Technician app**, choose the HBL technician demo for HBL examples, and open an assigned visit. Start the visit or continue its draft.
+1. Sign in to the registered **Technician** account and open a visit assigned by PowerVision. Start the visit or continue its draft.
 2. Complete the existing core service fields. The section navigator also provides the paper-form sections: customer/paper reference, two representative travel rows, three running-parameter rows, electrical/safety/mechanical/fluid/leakage checks, filter quantities, ten spare-part rows, service detail, customer comments and sign-off.
 3. Copy the **paper FSR number** and **date written on paper FSR** exactly. They are separate from the application's generated digital FSR reference and submission timestamp. The original core fields provide the first row's current running hours, kW, phase amperes, RPM/frequency, oil pressure and jacket-water temperature; additional paper fields provide the remaining readings and rows.
 4. Upload a clear **Completed paper FSR image (signed / stamped)**, plus the existing before/after maintenance images. JPEG, PNG or WebP is supported, at most 2 MB per image. The optional customer and technician signature crops have the same limit. Draft and submission requests allow 18 MB to accommodate all five permitted images as JSON/base64. This upload accepts images; the blank reference PDF is not a completed service record.
@@ -15,19 +15,19 @@ The ten free-text paper spare-part rows transcribe the document. They do not aut
 
 The expanded schema has 225 fields: the existing 75 core/evidence fields and 150 optional paper-form fields. Optional fields do not invalidate older reports or require invented readings. If an older client omits an optional paper field during a correction, its previously recorded value is retained; explicitly sending an empty value clears it.
 
-## HBL and company: compare and verify
+## UBL and company: compare and verify
 
-Open a submitted detailed FSR and its paper-image comparison area. Enlarge the image as needed and compare it against the structured fields. HBL and PowerVision each record their own **Matched** or **Mismatch** result. A mismatch requires an explanation; selected field names identify what was checked or found different.
+Open a submitted detailed FSR and its paper-image comparison area. Enlarge the image as needed and compare it against the structured fields. UBL and PowerVision each record their own **Matched** or **Mismatch** result. A mismatch requires an explanation; selected field names identify what was checked or found different.
 
 This is a **manual evidence comparison**, not OCR or automatic proof that the technician's readings are accurate. A company's matched result does not mark the client's result matched. Both teams see who reviewed the revision, when, the decision and comments. Repeated reviews append history rather than overwriting an earlier decision.
 
 Verification is distinct from branch acknowledgment and payment eligibility. A mismatch alone does not return stock, reject a visit or reopen an acknowledged report. To request a technician correction on a submitted visit, the matching branch reviewer uses the existing **Request correction** action. When the technician resubmits, the new revision's company/client checks start pending; prior checks remain attached to the earlier revision. A stale browser cannot verify an old revision as current.
 
-Company verification belongs to the visit's actual vendor and matching asset owner. Client verification belongs to the matching client head office or branch. Technicians cannot verify their own submissions. HBL and UBL records remain isolated even when they use the same branch code. The map also keeps those branches separate.
+Company verification belongs to the visit's actual vendor and matching asset owner. Client verification belongs to the matching client head office or branch. Technicians cannot verify their own submissions. Client and company ownership remain enforced even if branch codes are reused. The map also keeps those branches separate.
 
-## HBL: generate the Excel report
+## UBL: generate the Excel report
 
-Choose **HBL Head Office → AMC Excel report**, select the reporting month, inspect the preview and choose **Download Excel**. PowerVision management can choose HBL or UBL. The spreadsheet follows the supplied 69-column A:BQ layout and includes a **Data sources** worksheet explaining every column. The preview can show selected columns without changing the complete exported workbook.
+Choose **UBL Office → AMC Excel report**, select the reporting month, inspect the preview and choose **Download Excel**. PowerVision management can export its authorized UBL records too. The spreadsheet follows the supplied 69-column A:BQ layout and includes a **Data sources** worksheet explaining every column. The preview can show selected columns without changing the complete exported workbook.
 
 The source data comes from three places:
 
@@ -43,20 +43,10 @@ See [the complete 69-column mapping](amc-excel-column-mapping.md) for exact sour
 
 ## Demo and upgrade
 
-The demo selector includes **HBL Head Office**, **HBL Branch 0001 Reviewer** and **HBL Assigned Technician**, alongside the existing UBL and company identities. Three clearly synthetic HBL assets/visits are added once to a recognizable demo database; real or mixed databases do not receive invented HBL records. Existing visits, drafts, evidence, stock and revisions are preserved. The demo accounts remain selectable local identities, not production authentication.
+Accounts now use real registration and portal-specific login. PowerVision registers technicians and its office staff, then invites the first UBL administrator. UBL manages its own team. Fresh data contains only twelve synthetic UBL assets; older mistakenly labelled HBL demo history is retained but excluded from registered views. See [Portal access](portal-access.md).
 
 To update a Windows copy, download the latest project ZIP, extract it into a new folder, copy the old `data` folder and optional `.env` before first start, and run `START-AMC.bat`. Keep the old folder as a backup. The starter installs the locked Excel dependency, checks the project and starts it without resetting records.
 
-## Verified screens
+## Verification
 
-All 28 automated tests pass. Chromium checks exercised the HBL technician form, draft/resume, paper image replacement/zoom, manual company/client comparison, correction revisions and the actual Excel download. Desktop and 390px mobile layouts were checked. Screenshots use clearly labelled synthetic paper evidence.
-
-![Paper FSR details in the technician app](screenshots/paper-fsr-mobile.png)
-
-![Technician compares the completed paper image before submitting](screenshots/paper-fsr-review-mobile.png)
-
-![The technician can read both offices' revision-specific comparison results](screenshots/paper-fsr-verification-mobile.png)
-
-![Company and HBL compare the same paper evidence and entered fields](screenshots/paper-fsr-comparison.png)
-
-![HBL monthly AMC workbook preview and download on mobile](screenshots/hbl-amc-excel-mobile.png)
+Automated tests cover all paper fields, uploaded evidence, exact revision checks, cross-portal access and the real 69-column XLSX. Real-account browser checks exercise the registered technician and both office workflows. Current branded screens are documented with [portal access](portal-access.md).

@@ -31,10 +31,10 @@ test('Drafts persist, enforce ownership/revisions, and clear atomically after va
  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('Technician API uses its own session, rejects other roles, and shares submissions with HO',async()=>{
- const {server}=createApp({dbPath:':memory:'});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
+ const {server}=createApp({dbPath:':memory:',demoMode:true});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
  const request=(path,cookie,body,method=body?'POST':'GET')=>fetch(base+path,{method,headers:{...(cookie?{cookie}:{}),...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
  try{
-  const page=await fetch(base+'/technician');assert.equal(page.url,base+'/technician/');assert.match(await page.text(),/PowerVision Systems Pvt Ltd/);assert.equal((await fetch(base+'/technician/manifest.webmanifest')).headers.get('content-type'),'application/manifest+json');
+  const page=await fetch(base+'/technician',{redirect:'manual'});assert.equal(page.status,303);assert.equal(page.headers.get('location'),'/technician/login');assert.equal((await fetch(base+'/technician/manifest.webmanifest')).headers.get('content-type'),'application/manifest+json');
   assert.equal((await request('/api/technician/me')).status,401);
   const hoLogin=await request('/api/session',null,{userId:ho.id}),hc=hoLogin.headers.get('set-cookie').split(';')[0];assert.equal((await request('/api/technician/me',hc)).status,401);
   assert.equal((await request('/api/technician/session',null,{userId:ho.id})).status,403);

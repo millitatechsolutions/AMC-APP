@@ -6,15 +6,13 @@ import { join } from 'node:path';
 import { createStore, users } from '../src/store.js';
 import { createApp } from '../src/server.js';
 import { fields, PAPER_FSR_TEMPLATE, validateFields } from '../src/fields.js';
+import { legacyHbl as hbl, legacyHblBranch as hblBranch, legacyHblTechnician as hblTechnician, insertLegacyHblVisits } from './legacy-fixtures.js';
 
 const company = users.find(user => user.id === 'ho-demo');
 const management = users.find(user => user.id === 'vendor-demo');
 const ubl = users.find(user => user.id === 'ubl-ho-demo');
 const technician = users.find(user => user.id === 'tech-demo');
 const branch = users.find(user => user.id === 'branch-demo');
-const hbl = users.find(user => user.id === 'hbl-ho-demo');
-const hblBranch = users.find(user => user.id === 'hbl-branch-demo');
-const hblTechnician = users.find(user => user.id === 'hbl-tech-demo');
 const foreignVendor = { id: 'TEST-FOREIGN-MANAGER', name: 'Other vendor reviewer', role: 'vendor', vendor: 'Other Test Vendor' };
 const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
 const extras = fields.filter(field => field.template === PAPER_FSR_TEMPLATE);
@@ -124,10 +122,11 @@ test('Optional paper fields validate actual dates, times, checklist choices and 
   }
 });
 
-test('HBL demo visits and matching branch codes stay isolated from UBL while PowerVision sees both clients', () => {
-  assert.ok(hbl && hblBranch && hblTechnician, 'HBL demo identities must be available');
+test('Explicit historical HBL records stay isolated from UBL even when branch codes match', () => {
   const store = createStore(':memory:');
   try {
+    assert.ok(store.visible(company).every(visit => visit.client === 'UBL'), 'Fresh installations must contain UBL examples only');
+    insertLegacyHblVisits(store, company);
     const hblVisits = store.visible(hbl), ublVisits = store.visible(ubl);
     assert.ok(hblVisits.length > 0 && ublVisits.length > 0);
     assert.ok(hblVisits.every(visit => visit.client === 'HBL'));
@@ -255,8 +254,8 @@ test('Manual verification rejects wrong roles, foreign ownership, invalid field 
   }
 });
 
-test('Technician HTTP submissions expose paper evidence and independent manual checks to HBL and PowerVision only', async () => {
-  const { server, store } = createApp({ dbPath: ':memory:' });
+test('Technician demo regression exposes paper evidence and independent checks to UBL and PowerVision only', async () => {
+  const { server, store } = createApp({ dbPath: ':memory:', demoMode: true });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const request = (path, cookie, input) => fetch(origin + path, {
@@ -270,9 +269,10 @@ test('Technician HTTP submissions expose paper evidence and independent manual c
     return response.headers.get('set-cookie').split(';')[0];
   };
   try {
-    const visit = store.visible(hblBranch)[0];
-    const technicianCookie = await login(hblTechnician, 'technician/'), companyCookie = await login(company);
-    const clientCookie = await login(hbl), ublCookie = await login(ubl), branchCookie = await login(hblBranch);
+    const visit = store.visible(branch)[0];
+    const foreign = cloneVisit(store, 'HTTP-OTHER-CLIENT', { client: 'Other Bank' });
+    const technicianCookie = await login(technician, 'technician/'), companyCookie = await login(company);
+    const clientCookie = await login(ubl), branchCookie = await login(branch);
     const path = `/api/visits/${visit.id}`;
     assert.equal((await request(path + '/verify', null, {})).status, 401);
     const submit = await request(`/api/technician/visits/${visit.id}/submit`, technicianCookie, completeFsr(paperValues()));
@@ -282,8 +282,8 @@ test('Technician HTTP submissions expose paper evidence and independent manual c
     const report = await reportResponse.json(), revision = report.verification.revision;
     const matched = { revision, decision: 'matched', fields: ['paperFsrNumber', 'acVoltage3', 'leakFuelPump'] };
     assert.equal((await request(`/api/technician/visits/${visit.id}/verify`, technicianCookie, matched)).status, 403);
-    assert.equal((await request(path + '/verify', ublCookie, matched)).status, 403);
-    assert.equal((await request(path + '/report', ublCookie)).status, 403);
+    assert.equal((await request(`/api/visits/${foreign.id}/verify`, clientCookie, matched)).status, 403);
+    assert.equal((await request(`/api/visits/${foreign.id}/report`, clientCookie)).status, 403);
     const companyCheck = await request(path + '/verify', companyCookie, matched);
     assert.equal(companyCheck.status, 201);
     assert.equal((await companyCheck.json()).scope, 'company');
@@ -297,7 +297,7 @@ test('Technician HTTP submissions expose paper evidence and independent manual c
     assert.equal(companyReport.visit.fsr.paperFsrNumber, 'TEST-PVS-V02-002');
     assert.equal(companyReport.verification.company.decision, 'matched');
     assert.equal(companyReport.verification.client.decision, 'mismatch');
-    assert.equal(companyReport.verification.client.reviewer.id, hblBranch.id);
+    assert.equal(companyReport.verification.client.reviewer.id, branch.id);
     assert.equal(companyReport.verification.history.length, 2);
     assert.equal(companyReport.visit.status, 'submitted');
   } finally {

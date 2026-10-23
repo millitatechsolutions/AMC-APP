@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import { createStore, users } from '../src/store.js';
 import { createApp } from '../src/server.js';
 import { fields } from '../src/fields.js';
+import { legacyHbl, insertLegacyHblVisits } from './legacy-fixtures.js';
 import { REPORT_COLUMNS, buildAmcRows, createAmcWorkbook } from '../src/amc-report.js';
 
 // Independent copy of row 1 in the supplied Report Format AMC.xlsx, including its wording.
@@ -25,9 +26,7 @@ const headers = [
 ];
 const company = users.find(user => user.id === 'ho-demo');
 const ubl = users.find(user => user.id === 'ubl-ho-demo');
-const hbl = users.find(user => user.id === 'hbl-ho-demo');
 const technician = users.find(user => user.id === 'tech-demo');
-const hblTechnician = users.find(user => user.id === 'hbl-tech-demo');
 const branch = users.find(user => user.id === 'branch-demo');
 const management = users.find(user => user.id === 'vendor-demo');
 const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
@@ -146,9 +145,25 @@ test('Scheduled AMC rows leave missing technician measurements blank and legacy 
   }
 });
 
-test('AMC report APIs enforce client and role filters and export the same authorized rows as the JSON preview', async () => {
-  assert.ok(hbl && hblTechnician, 'The HBL demo client and its assigned technician must be available');
-  const { server, store } = createApp({ dbPath: ':memory:' });
+test('Historical HBL records require explicit fixtures and never become the default UBL report', () => {
+  const store = createStore(':memory:');
+  try {
+    assert.ok(store.visible(company).every(visit => visit.client === 'UBL'));
+    const [historical] = insertLegacyHblVisits(store, company);
+    const report = store.amcReport(legacyHbl, { client: 'HBL', month: historical.month });
+    assert.equal(report.rows.length, 3);
+    assert.ok(report.rows.every(row => row.client === 'HBL'));
+    assert.throws(() => store.amcReport(ubl, { client: 'HBL', month: historical.month }), error => error.status === 403);
+    const defaultReport = store.amcReport(company);
+    assert.equal(defaultReport.client, 'UBL');
+    assert.ok(defaultReport.rows.every(row => row.client === 'UBL'));
+  } finally {
+    store.close();
+  }
+});
+
+test('AMC report APIs enforce client and role filters and export the same authorized UBL rows as the JSON preview', async () => {
+  const { server, store } = createApp({ dbPath: ':memory:', demoMode: true });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const request = (path, cookie, input) => fetch(origin + path, {
@@ -162,11 +177,11 @@ test('AMC report APIs enforce client and role filters and export the same author
     return response.headers.get('set-cookie').split(';')[0];
   };
   try {
-    const visit = store.visible(hbl)[0];
-    store.submit(hblTechnician, visit.id, completeFsr({ currentHours: 1654, jobSummary: 'HBL synthetic AMC export check' }));
-    const prior = { ...store.visible(hbl)[1], id: 'TEST-AMC-PRIOR-MONTH', month: '2025-01', fsr: null, status: 'scheduled' };
+    const visit = store.visible(ubl)[0];
+    store.submit(technician, visit.id, completeFsr({ currentHours: 1654, jobSummary: 'UBL synthetic AMC export check' }));
+    const prior = { ...store.visible(ubl)[1], id: 'TEST-AMC-PRIOR-MONTH', month: '2025-01', fsr: null, status: 'scheduled' };
     store.db.prepare('INSERT INTO visits(id,asset_id,month,status,payload) VALUES(?,?,?,?,?)').run(prior.id, prior.assetId, prior.month, prior.status, JSON.stringify(prior));
-    const companyCookie = await login(company), clientCookie = await login(hbl), ublCookie = await login(ubl);
+    const companyCookie = await login(company), clientCookie = await login(ubl);
     const managementCookie = await login(management), technicianCookie = await login(technician), branchCookie = await login(branch);
     assert.equal((await request('/api/amc-report')).status, 401);
     assert.equal((await request('/api/amc-report.xlsx')).status, 401);
@@ -174,17 +189,17 @@ test('AMC report APIs enforce client and role filters and export the same author
       for (const suffix of ['', '.xlsx']) assert.equal((await request('/api/amc-report' + suffix, cookie)).status, 403);
     }
     for (const cookie of [companyCookie, clientCookie, managementCookie]) {
-      const previewResponse = await request(`/api/amc-report?month=${visit.month}&client=HBL`, cookie);
+      const previewResponse = await request(`/api/amc-report?month=${visit.month}&client=UBL`, cookie);
       assert.equal(previewResponse.status, 200);
       assert.equal(previewResponse.headers.get('cache-control'), 'no-store');
       const preview = await previewResponse.json();
-      assert.equal(preview.client, 'HBL');
+      assert.equal(preview.client, 'UBL');
       assert.equal(preview.month, visit.month);
-      assert.equal(preview.rows.length, store.visible(hbl).filter(row => row.month === visit.month).length);
-      assert.ok(preview.rows.every(row => row.client === 'HBL' && row.month === visit.month));
+      assert.equal(preview.rows.length, store.visible(ubl).filter(row => row.month === visit.month).length);
+      assert.ok(preview.rows.every(row => row.client === 'UBL' && row.month === visit.month));
       assert.equal(preview.rows.some(row => row.visitId === prior.id), false);
       assert.equal(preview.rows.find(row => row.visitId === visit.id).currentHours, 1654);
-      const download = await request(`/api/amc-report.xlsx?month=${visit.month}&client=HBL`, cookie);
+      const download = await request(`/api/amc-report.xlsx?month=${visit.month}&client=UBL`, cookie);
       assert.equal(download.status, 200);
       assert.match(download.headers.get('content-type'), /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/);
       assert.match(download.headers.get('content-disposition'), /attachment;.*\.xlsx/);
@@ -195,22 +210,21 @@ test('AMC report APIs enforce client and role filters and export the same author
       assert.equal(sheet.actualRowCount, preview.rows.length + 1);
       const rows = Array.from({ length: sheet.actualRowCount - 1 }, (_, index) => index + 2);
       const exported = rows.find(index => cell(sheet, index, 'fsrNumber').value === store.get(company, visit.id).fsr.fsrNumber);
-      assert.ok(exported, 'The workbook must contain the same submitted HBL FSR as the preview');
+      assert.ok(exported, 'The workbook must contain the same submitted UBL FSR as the preview');
       assert.equal(cell(sheet, exported, 'currentHours').value, 1654);
-      assert.equal(cell(sheet, exported, 'jobSummary').value, 'HBL synthetic AMC export check');
+      assert.equal(cell(sheet, exported, 'jobSummary').value, 'UBL synthetic AMC export check');
     }
     for (const suffix of ['', '.xlsx']) {
-      assert.equal((await request(`/api/amc-report${suffix}?month=${visit.month}&client=HBL`, ublCookie)).status, 403);
-      assert.equal((await request(`/api/amc-report${suffix}?month=${visit.month}&client=UBL`, clientCookie)).status, 403);
-      assert.equal((await request(`/api/amc-report${suffix}?month=2026-99&client=HBL`, companyCookie)).status, 422);
+      assert.equal((await request(`/api/amc-report${suffix}?month=${visit.month}&client=HBL`, clientCookie)).status, 403);
+      assert.equal((await request(`/api/amc-report${suffix}?month=2026-99&client=UBL`, companyCookie)).status, 422);
     }
-    const priorResponse = await request('/api/amc-report?month=2025-01&client=HBL', clientCookie);
+    const priorResponse = await request('/api/amc-report?month=2025-01&client=UBL', clientCookie);
     assert.equal(priorResponse.status, 200);
     assert.deepEqual((await priorResponse.json()).rows.map(row => row.visitId), [prior.id]);
     const defaultCompany = await (await request('/api/amc-report', companyCookie)).json();
-    assert.equal(defaultCompany.client, 'HBL');
+    assert.equal(defaultCompany.client, 'UBL');
     assert.equal(defaultCompany.month, new Date().toISOString().slice(0, 7));
-    const defaultUbl = await (await request('/api/amc-report', ublCookie)).json();
+    const defaultUbl = await (await request('/api/amc-report', clientCookie)).json();
     assert.equal(defaultUbl.client, 'UBL');
     assert.ok(defaultUbl.rows.every(row => row.client === 'UBL'));
   } finally {

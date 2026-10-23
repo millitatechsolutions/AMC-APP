@@ -1,94 +1,102 @@
 # Architecture and API
 
-## Current development structure
+## Local structure
 
 ```mermaid
 flowchart LR
-  T[Technician responsive web] --> A[Node.js HTTP API]
-  B[Branch responsive web] --> A
-  H[PowerVision company / management web] --> A
-  C[UBL / HBL head-office web] --> A
-  A --> D[(SQLite: assets, visits, FSR revisions, audit)]
+  P[PowerVision account portal] --> A[Node.js HTTP API]
+  U[UBL account portal] --> A
+  T[Assigned technician app] --> A
+  A --> S[(SQLite accounts, sessions, visits, FSRs and stock)]
 ```
 
-No external database or remote service is required for the local maintenance workflow. Node 24 supplies HTTP, file I/O, UUIDs and SQLite. The frontend uses browser modules, semantic forms and CSS, plus locally vendored Leaflet 1.9.4 for internet-connected Esri satellite imagery. Google Maps is optional; the labelled geographic fallback works without imagery access. HTML/client data never supplies the authoritative rate, branch assignment or warranty classification.
+Node.js 24 supplies HTTP, SQLite, crypto and filesystem operations. ExcelJS writes the real 69-column XLSX. Browser modules implement the landing pages, private office dashboards and mobile technician app. Locally vendored Leaflet displays Esri satellite imagery when available; a labelled local fallback remains usable. Optional Google Maps uses a restricted browser key.
+
+## Account and portal boundary
+
+`src/auth.js` stores accounts, salted scrypt password hashes, hashed random session/invitation tokens, rate-limit buckets and immutable account audit history. First-owner setup is one-time and race checked inside a transaction. Other accounts require a 48-hour, single-use invitation, followed by explicit login. There are no default passwords or public self-selected roles. Reset/disable/password change revoke sessions; stale disabled principals are rejected through a fresh database lookup.
+
+The executable always starts account authentication. `createApp({demoMode:true})` is an explicit in-process legacy regression fixture; no environment variable or HTTP input turns it on. `/api/session` and `/api/demo-users`, including their portal-namespaced variants, are absent in normal mode.
+
+- Public pages: `/`, `/powervision`, `/ubl`, `/technician/login`, `/setup`, `/activate`.
+- Private pages: `/powervision/app`, `/ubl/app`, `/technician/`.
+- Private API namespaces: `/api/powervision/`, `/api/ubl/`, `/api/technician/`.
+- Cookies: `amc_powervision_session`, `amc_ubl_session`, `amc_technician_session`; HttpOnly, SameSite=Strict, eight-hour maximum, Secure when the connection is HTTPS.
+- A session is bound to its account's portal. An unauthenticated private page redirects to its login; a different portal's session receives 403. Private API requests require the matching portal cookie.
+
+PowerVision administrators manage PowerVision staff and technicians. They may invite the first UBL administrator; after activation, UBL administrators manage their own office users and branch reviewers. PowerVision may renew its original pending first-UBL invitation while it has never been activated, but cannot manage active UBL accounts. Administrators cannot disable/reset themselves or remove the last active administrator's access.
+
+Record checks additionally enforce active status, actual company ownership on both asset and visit, UBL client ownership, branch assignment and technician assignment. A registered PowerVision head-office account does not inherit the legacy test fixture's unrestricted head-office scope. UBL cannot read inventory/catalogue/payment endpoints. Technicians may read the parts catalogue for service consumption, but cannot read or manage the stock ledger.
+
+Mutating requests reject foreign Origins. Local Host checks and executable loopback binding prevent arbitrary public hosting. CSP, frame denial, no-referrer and no-store private/API responses support this local boundary. The technician service worker caches only public static assets, never private HTML, API data, photos or credentials. A reviewed shared HTTPS deployment, enterprise identity/MFA and operational recovery remain separate work.
 
 ## Data dictionary
 
-| Table | Key fields | Purpose |
-|---|---|---|
-| assets | id, JSON payload | Branch/region/vendor relation, engine/model, warranty, rate and legacy service baseline |
-| visits | id, asset_id, month, status, JSON payload; unique(asset_id, month) | Assigned synthetic monthly visit, due date, latest FSR and branch decision |
-| fsr_versions | id, visit_id, JSON payload | Immutable submission snapshots, including evidence and computed values |
-| technician_drafts | visit_id, user_id, payload, revision, updated_at | Assigned technician draft and optimistic-concurrency revision |
-| fsr_verifications | id, visit_id, revision, scope, at, payload | Append-only company/client comparison decisions tied to an immutable FSR revision |
-| app_migrations | name | One-time additive demo upgrade markers; never infer real HBL records |
-| audit | id, actor, action, entity, at, detail | Append-only application action/decision history |
-| inventory_items | id, case-insensitive unique SKU, unit, quantity_milli, reorder_milli | PowerVision stock catalogue and balances in integer thousandths |
-| inventory_movements | id, item_id, signed quantity_milli, type, at, payload | Immutable opening, receipt and FSR consumption/correction ledger |
+| Table | Purpose |
+| --- | --- |
+| assets | Branch, client/vendor, model/engine, warranty, stored rate and previous-service baseline |
+| visits | Monthly assigned visit, due date, latest submitted FSR and branch decision |
+| fsr_versions | Immutable submission snapshots, including bounded image evidence |
+| fsr_verifications | Append-only company/client manual decisions tied to an exact FSR revision |
+| technician_drafts | Assigned technician draft and optimistic-concurrency revision |
+| audit | Service, inventory and assignment actor/action history |
+| inventory_items | Catalogue and integer-thousandth stock balances |
+| inventory_movements | Immutable opening, receipt and FSR consumption/correction ledger |
+| auth_accounts | Portal, role, administration scope, status and password hash |
+| auth_sessions | Hashed token, account, portal and expiry |
+| auth_tokens | Hashed single-use activation/reset token and expiry/use time |
+| auth_login_limits | Persistent short-window sign-in attempt limits |
+| auth_audit | Immutable account/session action history |
+| app_migrations | Additive upgrade markers |
 
-FSR keys, groups, labels and checklist options are maintained in `src/fields.js`. Evidence is stored as bounded JPEG/PNG/WebP data URLs in JSON for this small local demo. Production must migrate to access-controlled object storage, validate/re-encode media, and use normalized typed PostgreSQL entities and migrations. SQLite synchronous access and embedded photos have not been fleet-scale load-tested.
+Evidence is stored as bounded data URLs in this local SQLite foundation. Up to five 2 MB JPEG/PNG/WebP images fit within the 18 MB service request limit; account/auth payloads have a separate 64 KB bound. Production-scale storage, media processing and fleet-load validation remain separate requirements.
 
-## Workflow
-
-```mermaid
-stateDiagram-v2
-  [*] --> scheduled
-  scheduled --> submitted: assigned technician + validated FSR
-  submitted --> acknowledged: matching branch reviewer
-  submitted --> unacknowledged: matching branch + reason
-  unacknowledged --> submitted: corrected FSR, new immutable revision
-```
-
-Transitions and audit/revision writes are atomic. There is no submitted-FSR delete API. Acknowledged records cannot be edited through the current API. Corrections after acknowledgement, invoice locking, controlled administrative operations and finance reversals require a separately audited production design.
-
-## Local API
-
-All endpoints except health/demo-users/session creation require an HttpOnly local session cookie. The demo session creation endpoint intentionally has no authentication and must be replaced before production.
+## Public authentication API
 
 | Method | Path | Behavior |
-|---|---|---|
-| GET | /api/health | Readiness and synthetic-demo indicator |
-| GET | /api/demo-users | Available synthetic identities |
-| POST | /api/session | `{ "userId": "tech-demo" }` sets a demo session |
-| GET | /api/me | Current identity |
-| GET | /api/fields | Structured FSR schema |
-| GET | /api/visits | Scope-filtered visits with latest FSR; `?summary=1` omits image bodies for lightweight overview polling |
-| GET | /api/visits/:id | Scope-checked full visit/FSR detail |
-| GET | /api/visits/:id/report | Scope-checked complete report, asset, technician identity, company/client labels, immutable revisions and activity |
-| GET | /api/map-config | Browser Maps key/map ID when configured; browser keys must have HTTP referrer/API restrictions |
-| GET | /api/assets | Scope-filtered asset register |
-| GET | /api/inventory | Company-manager catalogue and movement ledger |
-| GET | /api/inventory/catalogue | Company-manager or technician stock picker |
-| POST | /api/inventory/items | Company-manager creates SKU with optional opening quantity |
-| POST | /api/inventory/receipts | Company-manager receives positive stock with a required reference |
-| POST | /api/visits/:id/submit | FSR field object; technician only |
-| POST | /api/visits/:id/review | `{ "decision": "acknowledged" }` or `unacknowledged` with `reason`; branch only |
-| POST | /api/visits/:id/verify | `{revision, decision: "matched" or "mismatch", reason, fields}`; responsible company/client reviewer only |
-| GET | /api/amc-report?month=YYYY-MM&client=HBL | Company/client-HO scoped preview with 69-column metadata and rows |
-| GET | /api/amc-report.xlsx?month=YYYY-MM&client=HBL | Same authorized rows as real XLSX, with Data sources sheet |
-| GET | /api/visits/:id/history | Scope-checked immutable FSR revision history |
-| GET | /api/audit | Scope-checked action/decision history |
-| GET | /api/payments?month=YYYY-MM | HO/vendor statement including blocked/zero-charge rows |
-| GET | /api/export.csv?month=YYYY-MM | Full authorized monthly payment statement, formula-safe CSV |
+| --- | --- | --- |
+| GET | /api/health | Readiness, synthetic-data mode and account-authentication indicator |
+| GET | /api/auth/status | Whether the initial owner exists; invite-only registration mode |
+| POST | /api/auth/bootstrap | First owner name/email/employeeId/password; creates owner and PowerVision session once |
+| POST | /api/auth/login | Portal/email/password; sets matching portal cookie |
+| POST | /api/auth/invitation | Opaque invitation token; returns minimal invited-account details |
+| POST | /api/auth/activate | Token/password; consumes invitation, does not log in automatically |
+| POST | /api/auth/logout | Portal; revokes that cookie's session |
+| POST | /api/auth/password | Portal/currentPassword/newPassword; requires matching account session, then revokes its sessions |
 
-Status codes: 400 malformed input, 401 missing/expired session, 403 role/scope denial, 404 unknown entity/endpoint, 409 invalid transition, 413 request too large, 422 missing or invalid FSR/reason. The service runs in UTC for record timestamps. Localization and Pakistan calendar business rules require an approved policy.
+Invitation URLs use `/activate#TOKEN`; the fragment is read in the browser and sent in an API body, not in the server request URL. Tokens are not included in audits or stored in plaintext. Copy/share delivery is manual; no email provider is configured.
 
-`inventoryUsage` is an optional structured FSR/draft array of `{itemId, quantity}`. On submission the server resolves SKU/name/unit and stores them in each immutable FSR snapshot. The FSR revision, signed stock movements, balance changes, draft cleanup and visit update share one `BEGIN IMMEDIATE` transaction. Any failure rolls back all of them. Corrections compare the latest booked quantities against the replacement report and record only the difference. Inventory movements have SQL triggers preventing update/delete; insufficient stock cannot produce negative balances. Managers receive item/receipt audit events; client and technician audit views exclude those company stock events. See [Inventory management](inventory-management.md).
+## Private API
 
-`ubl-ho-demo` and `hbl-ho-demo` are `client_ho` identities restricted to their respective clients. They can read reports, record manual paper-image verification and export their own AMC workbook. They cannot submit, branch-acknowledge or access company payment endpoints. Branch reviewers also match their client, even if another client uses the same branch code. Explicit visit/asset client contradictions are denied to client and branch identities. Only existing `DEMO-ENGINE-*` assets with no client receive the legacy UBL label; unknown real records do not. Previous synthetic `Demo AMC Services` vendor metadata is presented as PowerVision without rewriting immutable historical FSR snapshots. New submissions retain the technician name/employee ID, client and company as server-authored metadata.
+Replace `:portal` with `powervision`, `ubl` or `technician`. The namespace itself does not grant permission.
 
-## Proposed production architecture
+| Method | Path under `/api/:portal/` | Behavior |
+| --- | --- | --- |
+| GET | me | Current authenticated profile |
+| GET | fields | 225-field FSR dictionary |
+| GET | visits?summary=1 | Authorized lightweight visits without evidence payloads |
+| GET | visits/:id | Authorized full visit |
+| GET | visits/:id/report | Same complete FSR, identities, evidence, revisions, verification and activity for authorized parties |
+| GET | visits/:id/history | Immutable submitted snapshots |
+| POST | visits/:id/start | Assigned technician first-start event |
+| GET / POST | visits/:id/draft | Assigned editable draft with concurrency revision |
+| POST | visits/:id/submit | Assigned technician validated FSR; atomically applies stock usage and clears draft |
+| POST | visits/:id/review | Matching branch acknowledgment or correction request |
+| POST | visits/:id/verify | Exact client/company reviewer manual decision on current revision |
+| GET | assets / audit / map-config | Scoped master records, activity or browser map configuration |
+| GET | inventory / inventory/catalogue | Company stock register, or technician service picker where authorized |
+| POST | inventory/items / inventory/receipts | PowerVision stock creation/receipts |
+| GET | payments / export.csv | Company-only monthly reconciliation |
+| GET | amc-report / amc-report.xlsx | Authorized UBL monthly 69-column preview/XLSX with Data sources sheet |
+| GET / POST | accounts | Scoped administrator account listing/invitation |
+| POST | accounts/:id/action | Scoped enable/disable/reset/reinvite |
+| GET | technicians | PowerVision admin's active registered technicians |
+| POST | visits/:id/assign | PowerVision administrator assigns an active technician to an untouched UBL visit |
 
-- Responsive HO web frontend and Android technician/branch clients, backed by one versioned authenticated API.
-- Enterprise identity provider with MFA and individual technician/branch account lifecycle. Scope assignments established centrally.
-- PostgreSQL for normalized transactional state; private object storage with short-lived authorized attachment access; encrypted backups and tested restore procedures.
-- Worker/queue for schedule generation, configurable reminders, escalation and scheduled reporting.
-- Encrypted mobile offline storage with idempotent submission keys, versioned records and conflict handling; branch/payment decisions remain authoritative server-side.
-- Hosting location, TLS, secrets management, telemetry, immutable audit retention and DR chosen against UBL-approved security requirements.
+Assignment rejects started visits, drafts, existing FSR history and foreign ownership. No historical FSR author is changed when registering a new technician. Submitted reports are corrected only through the existing branch-rejection flow.
 
-Overview counting, demo location provenance, and Google Maps setup are documented in [Branch map and overview](branch-map-and-overview.md).
+FSR submission, immutable revision, stock balance/ledger, draft cleanup and visit status share one transaction. Manual verification does not change stock or acknowledgment. A corrected submission resets current verification results while preserving earlier decisions. Only acknowledged OOW visits are payable at their stored rate.
 
-Dedicated technician app, isolated sessions and start/draft APIs: [Technician application](technician-app.md).
+Fresh data is twelve UBL synthetic assets. Earlier mistaken HBL demo records are retained but hidden from registered portal views; fresh startup does not recreate them. This preserves evidence and stock history without presenting the wrong bank as the active client.
 
-Paper V02 adds 150 optional scalar fields to the existing 75, retaining old snapshots and draft compatibility. Dates/times/checklist selections and scalar numeric ranges are validated when provided. Up to five 2 MB evidence images fit within the 18 MB JSON body bound. Manual comparison history resets to pending on each new submission revision; branch acknowledgment and stock remain independent. ExcelJS is a locked runtime dependency for the actual XLSX export. [Paper FSR/HBL guide](fsr-v02-and-hbl-reports.md) and [69-column mapping](amc-excel-column-mapping.md).
+[Portal registration](portal-access.md) · [Paper FSR and UBL reporting](fsr-v02-and-ubl-reports.md) · [Inventory](inventory-management.md)

@@ -358,3 +358,14 @@ input:focus, select:focus, textarea:focus { border-color: #168d83; }
   .editor-toolbar > span { font-size: 8px; }
   .photo-actions { flex-direction: column; }
 }
+
+/* Account access is provided by the separate technician sign-in portal. */
+.app-logo.company-logo { display: block; }
+.app-logo.company-logo img { width: 193px; height: 31px; object-fit: contain; object-position: left; background: #fff; }
+.app-logo.company-logo small { display: block; margin-top: 6px; margin-left: 34px; font-size: 7px; letter-spacing: 1.6px; font-weight: 600; color: #8195a3; }
+.connection-state { max-width: 460px; min-height: 80vh; margin: 0 auto; padding: 65px 30px; text-align: center; }
+.connection-state > img { width: 210px; max-width: 100%; height: auto; background: white; margin-bottom: 35px; }
+.connection-state h1 { font-size: 29px; margin-bottom: 20px; }
+.connection-state p { margin-bottom: 25px; }
+.connection-state .primary { width: 100%; }
+@media (max-width: 540px) { .app-logo.company-logo img { width: 180px; height: 28px; }.app-logo.company-logo small { font-size: 6px; margin-left: 33px; letter-spacing: 1.3px; } }
