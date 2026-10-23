@@ -240,3 +240,29 @@ body[data-theme=technician] .graphic-grid { background-image: linear-gradient(#6
  .connection-error h1 { font-size: 33px; }
 }
 @media (prefers-reduced-motion: reduce) { .workspace-card { transition: none; } }
+
+/* Supplied brand artwork retains its original proportions. */
+.brand-pv { flex-direction: row; align-items: center; gap: 11px; }
+.brand-pv > img { width: 58px; height: 58px; max-height: none; object-fit: contain; object-position: center; background: #fff; }
+.brand-lockup { display: block; line-height: 1.15; }
+.brand-lockup > strong { display: block; color: #263754; font-size: 24px; letter-spacing: -.7px; font-weight: 750; }
+.brand-lockup > small { display: block; color: #66758a; font-size: 11px; letter-spacing: 1px; margin-top: 5px; }
+.brand-lockup .brand-caption { display: block; color: #8c96a8; font-size: 6px; letter-spacing: 1.8px; margin: 7px 0 0; }
+.brand-ubl > img { width: 107px; height: 80px; max-height: none; object-fit: contain; object-position: center; background: #fff; }
+.brand-ubl > span { color: #075b8b; font-size: 17px; font-weight: 750; letter-spacing: -.3px; }
+.brand-ubl small { letter-spacing: 0; font-size: 10px; font-weight: 500; }
+.workspace-card-top { min-height: 80px; }
+.workspace-ubl-logo { width: 105px; height: 79px; object-fit: contain; background: #fff; }
+.brand-card-mark { width: 60px; height: 60px; background: #fff !important; border: 1px solid #ffffff45; }
+.brand-card-mark img { display: block; width: 50px; height: 50px; object-fit: contain; }
+@media (max-width: 760px) {
+ .brand-pv > img { width: 49px; height: 49px; }
+ .brand-lockup > strong { font-size: 22px; }
+ .brand-lockup > small { font-size: 10px; margin-top: 4px; }
+ .brand-lockup .brand-caption { font-size: 5px; margin-top: 5px; letter-spacing: 1.6px; }
+ .brand-ubl > img { width: 94px; height: 70px; }
+ .brand-ubl > span { font-size: 17px; }
+ .brand-ubl small { font-size: 9px; }
+ .workspace-card-top { min-height: 72px; margin-bottom: 17px; }
+ .workspace-ubl-logo { width: 96px; height: 72px; }
+}

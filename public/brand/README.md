@@ -1,7 +1,10 @@
 # Portal brand assets
 
-`powervision-logo.png` is rendered directly from the company logo in the user-supplied blank FSR-V02.pdf (page 1 header); it is not a replacement logo design. The rendered crop excludes the service form and contact details.
+The current PNG assets are web reproductions prepared with the image editing tool from the two logo references supplied by the user on 23 October 2026. They are not claimed to be the original uploaded image bytes or files downloaded from a bank website.
 
-`ubl-logo.svg` is a local text wordmark identifying UBL / United Bank Limited in blue. The official brand vector could not be retrieved from ubldigital.com because this cloud network denied access. It does not claim to be an official downloaded bank vector. It can be replaced with the bank-provided approved logo at the same path. The portal uses a blue, cyan and white visual theme.
+- `powervision-logo.png`: square purple triangular PV mark on white; display with a separate PowerVision Systems Pvt Ltd text lockup. Preserve the square aspect ratio rather than stretching it into the former wide FSR-header slot.
+- `ubl-logo.png`: blue/turquoise UBL swoosh emblem, dot and United Bank Ltd. caption on white. Keep the full image visible and preserve its natural landscape ratio.
 
-The logos identify the respective workspaces. No affiliation or bank certification is added by displaying them.
+These replace the previous FSR-header crop and locally typeset UBL placeholder. The old `/brand/ubl-logo.svg` URL is retained only as a server alias to the current PNG so older pages can retrieve the replacement artwork. Current pages request the PNG directly.
+
+Place marks on white or on a padded white tile when used in a dark sidebar. Do not crop the triangle, bank caption or swoosh, or add a CSS color filter to change the supplied identity.

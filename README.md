@@ -62,6 +62,6 @@ Fresh data contains 12 clearly synthetic UBL assets, four warranty and eight out
 
 Passwords use salted scrypt hashes, and invitation/session tokens are stored as hashes. Session cookies are HttpOnly and SameSite, with separate portal bindings; request-origin and local-host checks are enforced. Legacy selectable demo identities are available only through an explicit in-process automated-test fixture option; normal startup never enables them.
 
-The working local account system is not a hosted bank deployment. Shared phone use still requires reviewed HTTPS hosting and operational identity, backup and recovery arrangements. No public website, enterprise SSO/MFA or native APK has been deployed. The UBL landing page uses a local text wordmark and blue/cyan theme; an official downloaded bank logo was unavailable from the cloud network. PowerVision's logo comes from the user-provided FSR header.
+The working local account system is not a hosted bank deployment. Shared phone use still requires reviewed HTTPS hosting and operational identity, backup and recovery arrangements. No public website, enterprise SSO/MFA or native APK has been deployed. The latest user-provided PowerVision purple mark and UBL swoosh references are used as web reproductions across the portal branding. Their aspect ratios are preserved; PowerVision includes a separate company-name lockup.
 
 This cloud task is already isolated. Use the existing checkout rather than creating a Git worktree unless explicitly requested.

@@ -369,3 +369,49 @@ input:focus, select:focus, textarea:focus { border-color: #168d83; }
 .connection-state p { margin-bottom: 25px; }
 .connection-state .primary { width: 100%; }
 @media (max-width: 540px) { .app-logo.company-logo img { width: 180px; height: 28px; }.app-logo.company-logo small { font-size: 6px; margin-left: 33px; letter-spacing: 1.3px; } }
+
+/* Actual PowerVision mark with a readable company lockup. */
+.app-logo.company-logo { display: flex; align-items: center; gap: 10px; }
+.app-logo.company-logo img { flex: 0 0 50px; width: 50px; height: 50px; object-fit: contain; object-position: center; }
+.company-wordmark { display: block; }
+.company-wordmark > b { display: block; color: #273650; font-size: 21px; letter-spacing: -.5px; line-height: 1.2; }
+.app-logo.company-logo .company-wordmark > small { margin: 3px 0 0; color: #7b879b; font-size: 9px; letter-spacing: .8px; font-weight: 500; }
+.company-wordmark > span { display: block; color: #95a1b0; font-size: 5px; font-weight: 650; letter-spacing: 1.2px; margin-top: 5px; }
+.connection-brand { display: flex; justify-content: center; align-items: center; gap: 12px; text-align: left; margin-bottom: 35px; }
+.connection-brand img { width: 57px; height: 57px; object-fit: contain; }
+.connection-brand strong { font-size: 23px; color: #273650; }
+.connection-brand small { display: block; font-size: 11px; letter-spacing: 1px; margin-top: 5px; color: #7d8b9f; font-weight: 500; }
+.fsr-start-panel { background: #fff; border: 1px solid #d9e8e8; border-top: 3px solid #168e81; border-radius: 13px; padding: 22px; margin-bottom: 23px; }
+.fsr-start-panel .eyebrow { font-size: 8px; letter-spacing: 1.4px; }
+.fsr-start-panel h2 { margin: 10px 0 9px; font-size: 19px; letter-spacing: -.35px; }
+.fsr-start-panel > p { font-size: 12px; margin-bottom: 18px; }
+.fsr-start-panel .primary { font-size: 12px; min-height: 48px; }
+.fsr-workflow { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 17px 0 0; margin: 17px 0 0; border-top: 1px solid #e7efef; }
+.fsr-workflow li { position: relative; text-align: center; }
+.fsr-workflow li > span { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid #d2e8e2; background: #edf7f3; color: #378a77; border-radius: 50%; font-size: 9px; font-weight: 650; margin: 0 auto 8px; }
+.fsr-workflow b { display: block; color: #426b74; font-size: 10px; line-height: 1.5; font-weight: 650; }
+.fsr-workflow small { display: block; color: #8b9fa8; font-size: 8px; line-height: 1.7; margin-top: 4px; }
+.assignment-empty strong { display: block; color: #547183; font-size: 13px; line-height: 1.7; margin-bottom: 10px; }
+.assignment-empty p { font-size: 12px; line-height: 1.8; }
+.visit-fsr-guide { padding: 20px; border: 1px solid #dbe9e6; background: #f0f8f4; border-radius: 11px; margin-top: 23px; }
+.visit-fsr-guide .eyebrow { font-size: 8px; }
+.visit-fsr-guide h2 { font-size: 16px; margin: 9px 0; }
+.visit-fsr-guide > p { font-size: 11px; }
+.visit-fsr-guide .fsr-workflow { margin-top: 14px; padding-top: 14px; }
+.visit-entry-note { font-size: 11px; margin: -3px 0 15px; }
+.editor-shortcuts { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 9px; margin: 15px 0 11px; }
+.editor-shortcuts button { padding: 11px 8px; font-size: 11px; min-height: 46px; color: #367c76; background: #fff; }
+.editor-shortcuts button:first-child { border-color: #b9dcd3; background: #edf8f3; }
+.editor-guide { color: #7c95a3; font-size: 10px; line-height: 1.8; margin: 0 0 18px; }
+.editor-guide b { color: #587c8e; font-weight: 650; }
+.paper-upload { scroll-margin-top: 18px; }
+@media (max-width: 540px) {
+ .app-logo.company-logo img { flex-basis: 44px; width: 44px; height: 44px; }
+ .company-wordmark > b { font-size: 19px; }
+ .app-logo.company-logo .company-wordmark > small { font-size: 8px; }
+ .company-wordmark > span { font-size: 4px; }
+ .fsr-start-panel { padding: 19px; }
+ .fsr-start-panel h2 { font-size: 18px; }
+ .editor-shortcuts { gap: 7px; }
+ .editor-shortcuts button { font-size: 10px; padding: 11px 7px; }
+}

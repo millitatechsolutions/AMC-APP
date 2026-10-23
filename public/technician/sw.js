@@ -1,7 +1,7 @@
 // Cache public static assets only. Auth pages, private HTML, sessions, FSRs,
 // photographs and every API response always use the network.
-const CACHE='amc-technician-shell-v5-private-access';
-const ASSETS=['/technician/app.js','/technician/styles.css','/technician/icon.svg','/technician/icon-192.png','/technician/icon-512.png','/technician/manifest.webmanifest','/brand/powervision-logo.png'];
+const CACHE='amc-technician-shell-v6-brand-fsr-guide';
+const ASSETS=['/technician/app.js','/technician/styles.css','/technician/manifest.webmanifest','/brand/powervision-logo.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('amc-technician-shell-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{

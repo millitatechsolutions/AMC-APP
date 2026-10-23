@@ -166,7 +166,7 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
     if(path==='/technician'){res.writeHead(308,{Location:'/technician/','Cache-Control':'no-store'});return res.end();}
     file=privatePortal==='technician'?'technician/index.html':'index.html';
    }
-   const files={'/app.js':'app.js','/styles.css':'styles.css','/branch-map.js':'branch-map.js','/branch-map.geojson':'branch-map.geojson','/overview.js':'../shared/overview.js','/access/app.js':'access/app.js','/access/styles.css':'access/styles.css','/brand/powervision-logo.png':'brand/powervision-logo.png','/brand/ubl-logo.svg':'brand/ubl-logo.svg'};
+   const files={'/app.js':'app.js','/styles.css':'styles.css','/branch-map.js':'branch-map.js','/branch-map.geojson':'branch-map.geojson','/overview.js':'../shared/overview.js','/access/app.js':'access/app.js','/access/styles.css':'access/styles.css','/brand/powervision-logo.png':'brand/powervision-logo.png','/brand/ubl-logo.png':'brand/ubl-logo.png','/brand/ubl-logo.svg':'brand/ubl-logo.png'};
    for(const name of ['app.js','styles.css','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png','sw.js'])files['/technician/'+name]='technician/'+name;
    for(const name of ['leaflet.js','leaflet.css','leaflet.js.map','LICENSE'])files['/vendor/leaflet/'+name]='vendor/leaflet/'+name;
    for(const name of ['marker-icon.png','marker-icon-2x.png','marker-shadow.png','layers.png','layers-2x.png'])files['/vendor/leaflet/images/'+name]='vendor/leaflet/images/'+name;

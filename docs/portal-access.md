@@ -47,7 +47,7 @@ Password bhoolne par apne portal administrator se reset link lein. Automated ema
 
 Fresh ZIP extract karne ke baad purana `data` folder aur optional `.env` first start se pehle copy karein. Purane reports, inventory aur photos retain hote hain. Yeh local installation hai: dusre mobile/computer ko access dene ke liye shared HTTPS hosting ki alag setup chahiye.
 
-PowerVision ka logo provided FSR se liya gaya hai. UBL ke liye local blue wordmark aur blue/cyan/white theme use hui hai; approved official bank logo same asset path par replace kiya ja sakta hai.
+Aapke diye huay PowerVision purple mark aur UBL swoosh logo references ke web assets landing pages aur portals mein use ho rahe hain. Logos apni asal shape mein dikhte hain; PowerVision ke mark ke saath company name alag diya gaya hai.
 
 ## Screens
 
@@ -56,3 +56,7 @@ PowerVision ka logo provided FSR se liya gaya hai. UBL ke liye local blue wordma
 ![UBL Office sign-in](screenshots/ubl-login.png)
 
 ![PowerVision account and technician registration](screenshots/team-registration.png)
+
+PowerVision ka mobile overview: technician register karein, visit assign karein aur submitted FSR review karein.
+
+![PowerVision mobile overview](screenshots/powervision-overview-mobile.png)
