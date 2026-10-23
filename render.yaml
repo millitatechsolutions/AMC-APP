@@ -1,0 +1,31 @@
+# Review the service and disk charges in Render before creating this Blueprint.
+# SQLite and every uploaded FSR image stay on the attached persistent disk.
+services:
+  - type: web
+    name: powervision-amc
+    runtime: node
+    plan: starter
+    region: singapore
+    repo: https://github.com/millitatechsolutions/AMC-APP
+    branch: main
+    numInstances: 1
+    autoDeployTrigger: commit
+    # Tests use isolated local/memory fixtures; the running service stays hosted.
+    buildCommand: npm ci --ignore-scripts && npm run check && AMC_HOSTED=0 HOST=127.0.0.1 npm test
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: amc-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: AMC_HOSTED
+        value: "1"
+      - key: AMC_TRUST_PROXY
+        value: "1"
+      - key: AMC_DB_PATH
+        value: /var/data/amc.sqlite
+      - key: AMC_SETUP_KEY
+        generateValue: true

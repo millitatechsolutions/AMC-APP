@@ -28,7 +28,15 @@ PowerVision administrators manage PowerVision staff and technicians. They may in
 
 Record checks additionally enforce active status, actual company ownership on both asset and visit, UBL client ownership, branch assignment and technician assignment. A registered PowerVision head-office account does not inherit the legacy test fixture's unrestricted head-office scope. UBL cannot read inventory/catalogue/payment endpoints. Technicians may read the parts catalogue for service consumption, but cannot read or manage the stock ledger.
 
-Mutating requests reject foreign Origins. Local Host checks and executable loopback binding prevent arbitrary public hosting. CSP, frame denial, no-referrer and no-store private/API responses support this local boundary. The technician service worker caches only public static assets, never private HTML, API data, photos or credentials. A reviewed shared HTTPS deployment, enterprise identity/MFA and operational recovery remain separate work.
+Mutating requests reject foreign Origins. Local Host checks and executable loopback binding remain the default. Explicit hosted mode is described below. CSP, frame denial, no-referrer and no-store private/API responses support the account boundary. The technician service worker caches only public static assets, never private HTML, API data, photos or credentials. Enterprise identity/MFA and operational recovery remain separate work.
+
+## Optional HTTPS hosting
+
+`src/hosting.js` validates hosted configuration before opening SQLite. `AMC_HOSTED=1` permits a public listener only with an exact configured HTTPS origin, an absolute persistent database path and a private first-owner setup key. The origin is `AMC_PUBLIC_ORIGIN` or Render's supplied external hostname. The public request Host must match it; mutating requests must also carry its exact Origin. Wrong/missing first-owner setup keys fail before account creation. The key is compared using fixed-length constant-time digests and is never returned by status responses or stored in account records.
+
+Hosted sessions always use Secure cookies. Only an explicitly enabled trusted hosting proxy may supply `X-Forwarded-Proto: https`; forwarded Host/IP headers do not grant access. Non-HTTPS application requests are rejected, and HTTPS responses set HSTS. A narrow read-only `/api/health` exception permits internal HTTP probes on the configured host or literal loopback hosts. Hosted mode cannot enable legacy demo identities.
+
+`render.yaml` prepares a single Node 24 service and persistent SQLite disk with automatic deployments from GitHub `main`. Build tests run isolated local fixtures; runtime uses the hosted configuration. No hosted account, payment or public deployment has been created by committing these files. See [online setup and deployment](online-hosting.md) for the owner's connection, cost review and first setup steps.
 
 ## Data dictionary
 
@@ -49,15 +57,15 @@ Mutating requests reject foreign Origins. Local Host checks and executable loopb
 | auth_audit | Immutable account/session action history |
 | app_migrations | Additive upgrade markers |
 
-Evidence is stored as bounded data URLs in this local SQLite foundation. Up to five 2 MB JPEG/PNG/WebP images fit within the 18 MB service request limit; account/auth payloads have a separate 64 KB bound. Production-scale storage, media processing and fleet-load validation remain separate requirements.
+Evidence is stored as bounded data URLs in SQLite, on the configured persistent disk when hosted. Up to five 2 MB JPEG/PNG/WebP images fit within the 18 MB service request limit; account/auth payloads have a separate 64 KB bound. Production-scale storage, media processing and fleet-load validation remain separate requirements.
 
 ## Public authentication API
 
 | Method | Path | Behavior |
 | --- | --- | --- |
 | GET | /api/health | Readiness, synthetic-data mode and account-authentication indicator |
-| GET | /api/auth/status | Whether the initial owner exists; invite-only registration mode |
-| POST | /api/auth/bootstrap | First owner name/email/employeeId/password; creates owner and PowerVision session once |
+| GET | /api/auth/status | Whether the initial owner exists; invite-only registration mode; hosted mode also reports whether a setup key is required |
+| POST | /api/auth/bootstrap | First owner name/email/employeeId/password (plus private setupKey in hosted mode); creates owner and PowerVision session once |
 | POST | /api/auth/login | Portal/email/password; sets matching portal cookie |
 | POST | /api/auth/invitation | Opaque invitation token; returns minimal invited-account details |
 | POST | /api/auth/activate | Token/password; consumes invitation, does not log in automatically |

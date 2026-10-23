@@ -2,6 +2,10 @@
 
 This application has separate PowerVision Head Office, UBL Office and Technician sign-in pages. The first owner creates an account; all other accounts are registered by the appropriate administrator.
 
+## Use a permanent online link
+
+Recommended when you want to see updates without repeatedly downloading the project: follow [Ek online link — Render setup](online-hosting.md). Once hosted, bookmark the app's HTTPS link. GitHub updates deploy automatically; wait for Render to show **Live**, then refresh. You will not need Node.js or a running terminal on your laptop. Hosting with permanent data storage is paid; review the plan before creating it. The deployment files are prepared, but the owner must connect Render/GitHub and deploy before a live link exists.
+
 ## Run on your computer
 
 1. Install **Node.js 24 or newer** from the official Node.js website. npm is included.
@@ -43,6 +47,6 @@ Fresh data contains 12 synthetic UBL assets. Real branches and GPS coordinates h
 
 ## Cloud environment
 
-The cloud setup runs a local service for development. Its local address belongs to that cloud machine; the onboarding screen does not provide a browser preview on your laptop. Use the download/local steps above to try the app yourself. To retain the prepared cloud setup, review/save environment settings and publish the environment. This does not publish the application as a public website.
+The cloud setup runs a local service for development. Its local address belongs to that cloud machine; the onboarding screen does not provide a browser preview on your laptop. Use the [online hosting setup](online-hosting.md) for a permanent shared browser link, or the local steps above to run it on your computer. To retain the prepared cloud development setup, review/save environment settings and publish the environment. Publishing that development environment does not publish the application as a public website.
 
 [Portal access](portal-access.md) · [Paper FSR](fsr-v02-and-ubl-reports.md) · [Inventory](inventory-management.md) · [Technician app](technician-app.md)

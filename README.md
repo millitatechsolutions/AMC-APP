@@ -14,6 +14,14 @@ The starter installs the locked dependencies, checks the source, runs the tests 
 
 [Beginner instructions](docs/beginner-guide.md) · [Registration and portal access](docs/portal-access.md)
 
+## Use one online link
+
+For viewing updates without downloading a ZIP each time, use the prepared [Render hosting setup](docs/online-hosting.md). It connects GitHub `main` to automatic deployments and keeps accounts, reports, photos and inventory on a persistent disk. This uses a paid web service and disk; review the current cost in Render before creating them.
+
+[Open Render deployment setup](https://render.com/deploy?repo=https://github.com/millitatechsolutions/AMC-APP)
+
+After the owner connects GitHub and deploys, everyone uses the same HTTPS link with their own portal account. The first owner setup also needs a private generated setup key from the hosting dashboard. The repository is prepared for hosting; no Render account, payment or public service has been created by this change.
+
 ![PowerVision and UBL portal selection](docs/screenshots/portal-chooser.png)
 
 ## First registration
@@ -56,7 +64,7 @@ npm test
 npm start
 ```
 
-The server binds to loopback. The default database is ignored `data/amc.sqlite`; optional `.env` supplies map configuration. **Preserve both when upgrading.** Extract a new download into a fresh folder and copy the old `data` folder and optional `.env` before its first start. Never replace two existing databases blindly.
+The server binds to loopback by default. Explicit hosted mode validates the configured HTTPS origin and uses a separately configured persistent database path; see [hosting settings](docs/online-hosting.md). For local installs the default database is ignored `data/amc.sqlite`; optional `.env` supplies map configuration. **Preserve both when upgrading.** Extract a new download into a fresh folder and copy the old `data` folder and optional `.env` before its first start. Never replace two existing databases blindly.
 
 Fresh data contains 12 clearly synthetic UBL assets, four warranty and eight out of warranty. Real branches, GPS locations and fleet master data have not been imported. Earlier mistaken HBL demo records are preserved on disk but excluded from registered portal views; no new HBL records are seeded. Old submitted evidence and stock history are retained. Select the stored visit month if the calendar changes.
 

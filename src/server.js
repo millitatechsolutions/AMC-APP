@@ -7,6 +7,7 @@ import { createStore, users } from './store.js';
 import { createAuth } from './auth.js';
 import { fields } from './fields.js';
 import { createAmcWorkbook } from './amc-report.js';
+import { readHostingConfig, checkRequestHosting, validOwnerSetupKey } from './hosting.js';
 
 const root=fileURLToPath(new URL('../public/',import.meta.url));
 const portals=['powervision','ubl','technician'];
@@ -17,7 +18,9 @@ const fail=(message,status=422)=>{throw Object.assign(new Error(message),{status
 const cookie=(req,name)=>req.headers.cookie?.split(';').map(part=>part.trim()).find(part=>part.startsWith(name+'='))?.slice(name.length+1);
 
 // demoMode is an explicit test-fixture option. The executable never enables it.
-export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL('../data/amc.sqlite',import.meta.url)),demoMode=false}={}) {
+export function createApp({hosting=readHostingConfig(),dbPath=hosting.dbPath??fileURLToPath(new URL('../data/amc.sqlite',import.meta.url)),demoMode=false}={}) {
+ if(hosting.hosted&&demoMode)throw new Error('Hosted mode cannot enable demo identities');
+ if(hosting.hosted&&dbPath!==hosting.dbPath)throw new Error('Hosted database must use the configured persistent AMC_DB_PATH');
  const store=createStore(dbPath),auth=createAuth(store.db),demoSessions=new Map();
  const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
  const body=async(req,maximum=18*1024*1024)=>{
@@ -27,8 +30,8 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))fail('Send a JSON object',400);
   return parsed;
  };
- const setSessionCookie=(req,res,portal,token)=>res.setHeader('Set-Cookie',`${cookieName(portal)}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${req.socket.encrypted?'; Secure':''}`);
- const clearSessionCookie=(req,res,portal)=>res.setHeader('Set-Cookie',`${cookieName(portal)}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${req.socket.encrypted?'; Secure':''}`);
+ const setSessionCookie=(req,res,portal,token)=>res.setHeader('Set-Cookie',`${cookieName(portal)}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${hosting.hosted||req.socket.encrypted?'; Secure':''}`);
+ const clearSessionCookie=(req,res,portal)=>res.setHeader('Set-Cookie',`${cookieName(portal)}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${hosting.hosted||req.socket.encrypted?'; Secure':''}`);
  const portalUser=(req,portal)=>auth.session(cookie(req,cookieName(portal)),portal);
  const anyPortalUser=req=>portals.map(portal=>portalUser(req,portal)).find(Boolean);
  const requirePortalUser=(req,portal)=>{
@@ -42,16 +45,15 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
   res.setHeader('X-Frame-Options','DENY');
   res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self' data: blob: https://server.arcgisonline.com https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   try{
-   const host=new URL(`http://${req.headers.host||'localhost'}`).hostname;
-   if(!['127.0.0.1','localhost','[::1]'].includes(host))return json(res,403,{error:'This local workspace accepts only localhost requests'});
-   const url=new URL(req.url,`http://${req.headers.host}`);let path=url.pathname;
-   if(!['GET','HEAD'].includes(req.method)&&req.headers.origin&&req.headers.origin!==`${req.socket.encrypted?'https':'http'}://${req.headers.host}`)return json(res,403,{error:'Origin denied'});
+   const {url,secure}=checkRequestHosting(req,hosting);let path=url.pathname;
+   if(hosting.hosted&&secure)res.setHeader('Strict-Transport-Security','max-age=31536000');
    if(path==='/api/health'&&req.method==='GET')return json(res,200,{status:'ok',mode:'synthetic-demo',authentication:demoMode?'test-fixtures':'accounts',client:'UBL'});
    if(path.startsWith('/api/auth/')){
-    if(path==='/api/auth/status'&&req.method==='GET')return json(res,200,auth.status());
+    if(path==='/api/auth/status'&&req.method==='GET'){const status=auth.status();return json(res,200,hosting.hosted?{...status,setupKeyRequired:!status.initialized}:status);}
     if(req.method!=='POST')return json(res,404,{error:'Endpoint not found'});
     const input=await body(req,64*1024);
     if(path==='/api/auth/bootstrap'){
+     if(!validOwnerSetupKey(input.setupKey,hosting))fail('Owner setup key is incorrect',403);
      const user=await auth.bootstrap(input);
      const session=await auth.login({portal:'powervision',email:user.email,password:input.password},{ip:req.socket.remoteAddress});
      setSessionCookie(req,res,'powervision',session.token);
@@ -179,8 +181,8 @@ export function createApp({dbPath=process.env.AMC_DB_PATH??fileURLToPath(new URL
  server.on('close',()=>store.close());return {server,store,auth};
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
- const host=process.env.HOST??'127.0.0.1',port=Number(process.env.PORT??3000);
- if(!['127.0.0.1','localhost','::1'].includes(host))throw new Error('This local workspace requires loopback binding. Configure reviewed HTTPS hosting before shared deployment.');
- const {server}=createApp();server.listen(port,host,()=>console.log(`PowerVision / UBL AMC workspace listening on ${host}:${port}`));
+ const hosting=readHostingConfig(),host=hosting.bindHost,port=Number(process.env.PORT??3000);
+ if(!Number.isInteger(port)||port<1||port>65535)throw new Error('PORT must be an integer between 1 and 65535');
+ const {server}=createApp({hosting});server.listen(port,host,()=>console.log(`PowerVision / UBL AMC ${hosting.hosted?'hosted':'local'} workspace listening on ${host}:${port}`));
  for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>server.close(()=>process.exit(0)));
 }
