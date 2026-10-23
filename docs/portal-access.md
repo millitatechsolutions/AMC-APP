@@ -45,7 +45,7 @@ Password bhoolne par apne portal administrator se reset link lein. Automated ema
 
 ## Update aur local use
 
-Fresh ZIP extract karne ke baad purana `data` folder aur optional `.env` first start se pehle copy karein. Purane reports, inventory aur photos retain hote hain. Ek permanent online link ke liye [Render ki shared HTTPS setup](online-hosting.md) tayyar hai; account connection aur deployment ke baad dusre mobile/computer se wahi app use ho sakti hai. Local records online automatically transfer nahi hote.
+Free local updates ke liye [GitHub Desktop setup](github-desktop-setup.md) use karein: ek dafa clone, phir Fetch/Pull. Purani app stop karke poora `data` folder aur optional `.env` fresh clone/extraction ke first start se pehle copy karein; purana folder backup rakhein. Later pulls mein data copy karna zaroori nahi. Shared online hosting optional paid setup hai; local records online automatically transfer nahi hote.
 
 Aapke diye huay PowerVision purple mark aur UBL swoosh logo references ke web assets landing pages aur portals mein use ho rahe hain. Logos apni asal shape mein dikhte hain; PowerVision ke mark ke saath company name alag diya gaya hai.
 

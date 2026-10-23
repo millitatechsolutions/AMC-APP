@@ -4,7 +4,7 @@ Separate account-protected workspaces for **PowerVision Head Office**, **UBL Off
 
 ## Start here
 
-Requires **Node.js 24 or newer** and npm. Windows: extract the project and double-click `START-AMC.bat`. macOS/Linux: run `bash start-amc.sh`. Both use:
+Requires **Node.js 24 or newer** and npm. For free Windows use without repeated downloads, [clone once with GitHub Desktop](docs/github-desktop-setup.md), then double-click `START-AMC.bat` in the cloned folder. macOS/Linux: run `bash start-amc.sh`. Both use:
 
 ```sh
 node scripts/start.mjs
@@ -12,11 +12,15 @@ node scripts/start.mjs
 
 The starter installs the locked dependencies, checks the source, runs the tests and starts a local server on a free port. Use the port printed in the terminal on that same computer. Keep the terminal open. The cloud onboarding screen does not provide a localhost browser preview.
 
-[Beginner instructions](docs/beginner-guide.md) · [Registration and portal access](docs/portal-access.md)
+[GitHub Desktop setup and updates](docs/github-desktop-setup.md) · [Beginner instructions](docs/beginner-guide.md) · [Registration and portal access](docs/portal-access.md)
 
-## Use one online link
+## Free updates with GitHub Desktop
 
-For viewing updates without downloading a ZIP each time, use the prepared [Render hosting setup](docs/online-hosting.md). It connects GitHub `main` to automatic deployments and keeps accounts, reports, photos and inventory on a persistent disk. This uses a paid web service and disk; review the current cost in Render before creating them.
+Clone `millitatechsolutions/AMC-APP` once and select branch `main`. Before first start, stop the old installation and copy its entire `data` folder and optional `.env` into the fresh clone if you have saved records. Keep the old folder as a backup. For every later update: save your draft, stop the app, **Fetch/Pull origin**, run `START-AMC.bat` again and refresh the browser. No hosting payment or repeated ZIP download is needed. See the [step-by-step guide](docs/github-desktop-setup.md).
+
+## Optional paid online hosting
+
+If shared online access is wanted later, the prepared [Render hosting setup](docs/online-hosting.md) connects GitHub `main` to automatic deployments and keeps accounts, reports, photos and inventory on a persistent disk. This uses a paid web service and disk; review the current cost in Render before creating them. The selected current workflow is free local GitHub Desktop use.
 
 [Open Render deployment setup](https://render.com/deploy?repo=https://github.com/millitatechsolutions/AMC-APP)
 

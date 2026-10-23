@@ -2,18 +2,18 @@
 
 This application has separate PowerVision Head Office, UBL Office and Technician sign-in pages. The first owner creates an account; all other accounts are registered by the appropriate administrator.
 
-## Use a permanent online link
+## Free updates with GitHub Desktop
 
-Recommended when you want to see updates without repeatedly downloading the project: follow [Ek online link — Render setup](online-hosting.md). Once hosted, bookmark the app's HTTPS link. GitHub updates deploy automatically; wait for Render to show **Live**, then refresh. You will not need Node.js or a running terminal on your laptop. Hosting with permanent data storage is paid; review the plan before creating it. The deployment files are prepared, but the owner must connect Render/GitHub and deploy before a live link exists.
+For your current free setup, follow [GitHub Desktop — one-time clone and updates](github-desktop-setup.md). Clone once, preserve your old data before first start, then use **Fetch/Pull origin** for later changes. Stop and restart the app after pulling, then refresh the browser. No repeated ZIP download or paid hosting is needed.
 
 ## Run on your computer
 
 1. Install **Node.js 24 or newer** from the official Node.js website. npm is included.
-2. On [GitHub](https://github.com/millitatechsolutions/AMC-APP), choose **Code → Download ZIP**. Extract it and open the project folder. Do not run it inside the ZIP.
-3. For an update, copy the old `data` folder and optional `.env` into the new extraction **before first start**, keeping the old folder as a backup.
+2. Recommended: [clone once with GitHub Desktop](github-desktop-setup.md). ZIP is an alternative: on [GitHub](https://github.com/millitatechsolutions/AMC-APP), choose **Code → Download ZIP**, extract it and open the project folder. Do not run it inside the ZIP.
+3. When moving from an old project folder to a fresh clone/extraction, stop the old app first and copy its entire `data` folder and optional `.env` into the new folder **before first start**. Keep the old folder as a backup. Later GitHub Desktop updates use the same clone, so this copying step is not repeated.
 4. Windows: double-click `START-AMC.bat`. macOS/Linux: run `bash start-amc.sh` from a terminal in that folder.
 5. Wait for **The AMC demo is running**. Type the printed local address and port into your browser on that same computer. Keep the terminal open while using the app.
-6. Select **Set up PowerVision**, then create your owner account. Follow [Registration aur portal access](portal-access.md) to register technicians and set up UBL access.
+6. If you copied existing data, sign in with your existing account. For a fresh installation only, select **Set up PowerVision** and create your owner account. Follow [Registration aur portal access](portal-access.md) to register technicians and set up UBL access.
 7. Stop the server with Ctrl+C in its terminal. Accounts and saved records remain available on the next start.
 
 The same starter can be run with `node scripts/start.mjs`. It installs dependencies, runs validation/tests, selects a free port from 3000–3010, and checks health without resetting records. The Windows wrapper has not been tested on a physical Windows machine in this Linux environment.
