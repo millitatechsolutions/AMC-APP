@@ -29,7 +29,7 @@ function passwordValue(value) {
   return value;
 }
 
-async function passwordHash(password) {
+export async function passwordHash(password) {
   const salt = randomBytes(16).toString('hex');
   const key = await deriveKey(password, Buffer.from(salt, 'hex'), 64, HASH_OPTIONS);
   return `scrypt$32768$8$1$${salt}$${key.toString('hex')}`;
@@ -184,7 +184,7 @@ export function createAuth(db) {
       const portal = typeof input?.portal === 'string' ? input.portal : '';
       const providedEmail = typeof input?.email === 'string' ? input.email.trim().toLowerCase() : '';
       const email = providedEmail.slice(0, 254);
-      const validInput = PORTALS.has(portal) && providedEmail.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(providedEmail) && typeof input?.password === 'string' && input.password.length >= 12 && input.password.length <= 128;
+      const validInput = PORTALS.has(portal) && providedEmail.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(providedEmail) && typeof input?.password === 'string' && input.password.length >= 1 && input.password.length <= 128;
       const bucket = reserveLoginAttempt(portal.slice(0, 32), email, ip);
       const user = validInput ? db.prepare('SELECT * FROM auth_accounts WHERE email=? COLLATE NOCASE').get(email) : undefined;
       const matches = await passwordMatches(input?.password, user?.password_hash);
