@@ -10,6 +10,16 @@ Hosting is paused. These simple credentials are for local testing:
 
 These are login identifiers, not real mailboxes. No emails are sent.
 
+## UBL / technician incorrect password
+
+Pull the latest changes, stop the app terminal with **Ctrl+C**, then run **RESET-UBL-TECHNICIAN.bat**. Wait for both login checks to pass and start **START-AMC.bat** again from this same folder. Use `admin@ubl.test` on the **UBL** sign-in page and `admin@technician.test` on the **Technician** sign-in page, both with `12345`. The suffix is **.test**, not .com.
+
+This targeted repair creates either account if missing or resets it in place if present. It preserves PowerVision credentials/sessions, other users, existing technician IDs/assignments, drafts, reports and inventory. Previous UBL/technician sessions and invitation/reset links for these two IDs are revoked. It also clears failed-login counters and makes a database backup. Missing new technicians still need visit assignments from PowerVision.
+
+macOS/Linux: `node --env-file-if-exists=.env scripts/reset-demo-users.mjs --confirm-reset --ubl-technician`.
+
+## Replace all three accounts
+
 After updating, stop the app with **Ctrl+C**. Double-click **RESET-DEMO-USERS.bat** once, wait for completion, then run **START-AMC.bat** again. macOS/Linux: `node --env-file-if-exists=.env scripts/reset-demo-users.mjs --confirm-reset`.
 
 The command backs up SQLite under `data/backups/`, removes current accounts/sessions/invitations and creates three active accounts. Reports, images, drafts, stock and historical audits remain. Only untouched visits are assigned to the new technician; started visits and old report authors stay unchanged.
