@@ -2,29 +2,28 @@ import { randomUUID } from 'node:crypto';
 import { createAuth, passwordHash } from './auth.js';
 
 export const DEMO_ACCOUNTS = [
-  { name:'PowerVision Admin', email:'admin@powervision.test', employeeId:'PV-ADMIN', portal:'powervision', role:'ho', vendor:'PowerVision Systems Pvt Ltd', client:'', admin:1 },
-  { name:'UBL Admin', email:'admin@ubl.test', employeeId:'UBL-ADMIN', portal:'ubl', role:'client_ho', vendor:'', client:'UBL', admin:1 },
-  { name:'PowerVision Technician', email:'admin@technician.test', employeeId:'PV-TECH', portal:'technician', role:'technician', vendor:'PowerVision Systems Pvt Ltd', client:'', admin:0 }
+  { name:'PowerVision Admin', email:'admin@gmail.com', employeeId:'PV-ADMIN', portal:'powervision', role:'ho', vendor:'PowerVision Systems Pvt Ltd', client:'', admin:1 },
+  { name:'UBL Admin', email:'admin@gmail.com', employeeId:'UBL-ADMIN', portal:'ubl', role:'client_ho', vendor:'', client:'UBL', admin:1 },
+  { name:'PowerVision Technician', email:'admin@gmail.com', employeeId:'PV-TECH', portal:'technician', role:'technician', vendor:'PowerVision Systems Pvt Ltd', client:'', admin:0 }
 ];
 
 // Repair only the two published logins, preserving IDs and other accounts.
-export async function repairClientTechnicianAccounts(db) {
+async function repairAccounts(db,targets) {
   createAuth(db);
-  const targets=DEMO_ACCOUNTS.filter(account=>account.portal!=='powervision');
-  const hashes=await Promise.all(targets.map(()=>passwordHash('12345')));
+  const hashes=await Promise.all(targets.map(()=>passwordHash('pak1234')));
   const at=new Date().toISOString();
   let created=0;
   db.exec('BEGIN IMMEDIATE');
   try {
     const accounts=targets.map((account,index)=>{
-      const existing=db.prepare('SELECT id,portal FROM auth_accounts WHERE email=? COLLATE NOCASE').get(account.email);
+      const existing=db.prepare('SELECT id,portal FROM auth_accounts WHERE portal=? AND email=? COLLATE NOCASE').get(account.portal,account.email) || db.prepare('SELECT id,portal FROM auth_accounts WHERE portal=? AND email=? COLLATE NOCASE').get(account.portal,({powervision:'admin@powervision.test',ubl:'admin@ubl.test',technician:'admin@technician.test'})[account.portal]);
       if(existing&&existing.portal!==account.portal)throw new Error('This login email belongs to another portal; no accounts were changed.');
       const id=existing?.id||`AUTH-${randomUUID()}`;
       if(existing){
         db.prepare('DELETE FROM auth_sessions WHERE account_id=?').run(id);
         db.prepare('DELETE FROM auth_tokens WHERE account_id=?').run(id);
-        db.prepare("UPDATE auth_accounts SET password_hash=?,status='active',role=?,vendor=?,client=?,branch_code='',admin=?,activated_at=? WHERE id=?")
-          .run(hashes[index],account.role,account.vendor,account.client,account.admin,at,id);
+        db.prepare("UPDATE auth_accounts SET email=?,password_hash=?,status='active',role=?,vendor=?,client=?,branch_code='',admin=?,activated_at=? WHERE id=?")
+          .run(account.email,hashes[index],account.role,account.vendor,account.client,account.admin,at,id);
       }else{
         db.prepare(`INSERT INTO auth_accounts
           (id,email,name,employee_id,portal,role,vendor,client,branch_code,admin,status,password_hash,created_at,created_by,activated_at)
@@ -42,10 +41,13 @@ export async function repairClientTechnicianAccounts(db) {
   }catch(error){db.exec('ROLLBACK');throw error;}
 }
 
+export const repairDefaultAccounts = db => repairAccounts(db,DEMO_ACCOUNTS);
+export const repairClientTechnicianAccounts = db => repairAccounts(db,DEMO_ACCOUNTS.filter(account=>account.portal!=='powervision'));
+
 // Explicit local operator action only; never called by startup or HTTP.
 export async function resetDemoAccounts(db) {
   createAuth(db);
-  const passwords = await Promise.all(DEMO_ACCOUNTS.map(() => passwordHash('12345')));
+  const passwords = await Promise.all(DEMO_ACCOUNTS.map(() => passwordHash('pak1234')));
   const at = new Date().toISOString();
   const accounts = DEMO_ACCOUNTS.map(account => ({ ...account, id:`AUTH-${randomUUID()}` }));
   db.exec('BEGIN IMMEDIATE');

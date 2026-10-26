@@ -2,7 +2,7 @@
 
 Separate account-protected workspaces for **PowerVision Head Office**, **UBL Office** and **Technicians**, with one shared service-report workflow. PowerVision registers technicians and office staff; the UBL administrator registers the bank's team. Inventory belongs to the PowerVision portal.
 
-For the requested three local accounts with password `12345`, see [demo login and one-time account reset](docs/demo-login.md). Run `RESET-DEMO-USERS.bat` once after updating; it backs up your database before replacing users. Normal startup preserves accounts.
+For the requested three local accounts with email `admin@gmail.com` and password `pak1234`, see [demo login and one-time account reset](docs/demo-login.md). Run `SET-DEFAULT-LOGINS.bat` once after updating; it backs up the database and preserves existing default account IDs while applying the new credentials. Normal startup preserves accounts.
 
 ## Start here
 

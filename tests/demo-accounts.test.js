@@ -28,15 +28,16 @@ test('Explicit reset replaces all users and credentials while preserving service
   assert.throws(()=>auth.invitation({token:invite.invitationToken}));
   await assert.rejects(auth.login({portal:'powervision',email:old.email,password:'Previous strong password'}));
   for(const account of result.accounts){
-   const login=await auth.login({portal:account.portal,email:account.email,password:'12345'});
+   const login=await auth.login({portal:account.portal,email:account.email,password:'pak1234'});
    assert.equal(login.user.id,account.id);
    for(const other of ['powervision','ubl','technician'].filter(p=>p!==account.portal)){
     assert.equal(auth.session(login.token,other),null);
-    await assert.rejects(auth.login({portal:other,email:account.email,password:'12345'}));
+    const otherLogin=await auth.login({portal:other,email:account.email,password:'pak1234'});
+    assert.notEqual(otherLogin.user.id,account.id);
    }
   }
-  const invitation=auth.createAccount((await auth.login({portal:'powervision',email:result.accounts[0].email,password:'12345'})).user,{name:'New invite',email:'new@example.test',employeeId:'NEW',portal:'technician',role:'technician',admin:false});
-  await assert.rejects(auth.activate({token:invitation.invitationToken,password:'12345'}),e=>e.status===422);
+  const invitation=auth.createAccount((await auth.login({portal:'powervision',email:result.accounts[0].email,password:'pak1234'})).user,{name:'New invite',email:'new@example.test',employeeId:'NEW',portal:'technician',role:'technician',admin:false});
+  await assert.rejects(auth.activate({token:invitation.invitationToken,password:'pak1234'}),e=>e.status===422);
  }finally{store.close();}
 });
 
@@ -72,8 +73,8 @@ test('Two-portal repair preserves PowerVision sessions and technician assignment
  const store=createStore(':memory:'),db=store.db,auth=createAuth(db);
  try{
   const initial=await resetDemoAccounts(db);
-  const pv=await auth.login({portal:'powervision',email:'admin@powervision.test',password:'12345'});
-  const tech=await auth.login({portal:'technician',email:'admin@technician.test',password:'12345'});
+  const pv=await auth.login({portal:'powervision',email:'admin@gmail.com',password:'pak1234'});
+  const tech=await auth.login({portal:'technician',email:'admin@gmail.com',password:'pak1234'});
   const visit=store.visible(pv.user)[0];store.assignTechnician(pv.user,visit.id,{technicianId:tech.user.id});
   const before=JSON.stringify(db.prepare('SELECT * FROM visits').all());
   const pvBefore=JSON.stringify(db.prepare("SELECT * FROM auth_accounts WHERE portal='powervision'").get());
@@ -88,7 +89,7 @@ test('Two-portal repair preserves PowerVision sessions and technician assignment
   assert.equal(result.accounts.find(a=>a.portal==='technician').id,tech.user.id);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM auth_login_limits').get().count,0);
   for(const account of result.accounts){
-   const session=await auth.login({portal:account.portal,email:account.email,password:'12345'});
+   const session=await auth.login({portal:account.portal,email:account.email,password:'pak1234'});
    assert.equal(session.user.id,account.id);
    assert.equal(auth.session(session.token,'powervision'),null);
   }

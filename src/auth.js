@@ -55,7 +55,7 @@ export function createAuth(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS auth_accounts (
       id TEXT PRIMARY KEY,
-      email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      email TEXT NOT NULL COLLATE NOCASE,
       name TEXT NOT NULL,
       employee_id TEXT NOT NULL,
       portal TEXT NOT NULL CHECK(portal IN ('powervision','ubl','technician')),
@@ -103,6 +103,31 @@ export function createAuth(db) {
   `);
   // This column distinguishes an initial invitation from a later password reset.
   if (!db.prepare('PRAGMA table_info(auth_accounts)').all().some(column => column.name === 'activated_at')) db.exec('ALTER TABLE auth_accounts ADD COLUMN activated_at TEXT');
+
+  // Upgrade the old global email constraint without changing account IDs or
+  // the child session/token references. Foreign keys are restored on all paths.
+  const globallyUnique = db.prepare('PRAGMA index_list(auth_accounts)').all().some(index =>
+    index.unique && db.prepare('PRAGMA index_info("' + index.name.replaceAll('"','""') + '")').all().map(column=>column.name).join(',') === 'email');
+  if (globallyUnique) {
+    if (db.isTransaction) throw new Error('Account email migration requires no active transaction');
+    const foreignKeys = db.prepare('PRAGMA foreign_keys').get().foreign_keys;
+    const original = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='auth_accounts'").get().sql;
+    const schema = original.replace(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?auth_accounts["`]?/i,'CREATE TABLE auth_accounts_scoped')
+      .replace(/email\s+TEXT\s+NOT\s+NULL\s+UNIQUE\s+COLLATE\s+NOCASE/i,'email TEXT NOT NULL COLLATE NOCASE');
+    if (schema === original || /email\s+TEXT\s+NOT\s+NULL\s+UNIQUE/i.test(schema)) throw new Error('Unsupported legacy account schema');
+    const objects = db.prepare("SELECT sql FROM sqlite_master WHERE tbl_name='auth_accounts' AND type IN ('index','trigger') AND sql IS NOT NULL").all();
+    const columns = db.prepare('PRAGMA table_info(auth_accounts)').all().map(column=>'"'+column.name.replaceAll('"','""')+'"').join(',');
+    db.exec('PRAGMA foreign_keys=OFF; BEGIN IMMEDIATE');
+    try {
+      db.exec(schema);
+      db.exec(`INSERT INTO auth_accounts_scoped(${columns}) SELECT ${columns} FROM auth_accounts; DROP TABLE auth_accounts; ALTER TABLE auth_accounts_scoped RENAME TO auth_accounts;`);
+      for (const object of objects) db.exec(object.sql);
+      if(db.prepare('PRAGMA foreign_key_check').all().length)throw new Error('Account migration found invalid references');
+      db.exec('COMMIT');
+    } catch(error) { db.exec('ROLLBACK'); throw error; }
+    finally { db.exec('PRAGMA foreign_keys='+(foreignKeys?'ON':'OFF')); }
+  }
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS auth_accounts_portal_email ON auth_accounts(portal,email)');
 
   const run = (sql, ...args) => db.prepare(sql).run(...args);
   const account = id => typeof id === 'string' ? db.prepare('SELECT * FROM auth_accounts WHERE id=?').get(id) : undefined;
@@ -186,7 +211,7 @@ export function createAuth(db) {
       const email = providedEmail.slice(0, 254);
       const validInput = PORTALS.has(portal) && providedEmail.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(providedEmail) && typeof input?.password === 'string' && input.password.length >= 1 && input.password.length <= 128;
       const bucket = reserveLoginAttempt(portal.slice(0, 32), email, ip);
-      const user = validInput ? db.prepare('SELECT * FROM auth_accounts WHERE email=? COLLATE NOCASE').get(email) : undefined;
+      const user = validInput ? db.prepare('SELECT * FROM auth_accounts WHERE portal=? AND email=? COLLATE NOCASE').get(portal,email) : undefined;
       const matches = await passwordMatches(input?.password, user?.password_hash);
       if (!validInput || !user || user.status !== 'active' || user.portal !== portal || !matches) fail('Email or password is incorrect for this portal', 401);
       return atomic(() => {
@@ -263,7 +288,7 @@ export function createAuth(db) {
         const manager = administrator(actor);
         if (manager.portal === 'ubl' && input.portal !== 'ubl') fail('UBL administrators can only manage UBL accounts', 403);
         if (manager.portal === 'powervision' && input.portal === 'ubl' && (input.role !== 'client_ho' || !admin || anyUblAdmin())) fail('Only the first UBL administrator may be invited from PowerVision', 403);
-        if (db.prepare('SELECT id FROM auth_accounts WHERE email=? COLLATE NOCASE').get(email)) fail('An account with this email address already exists', 409);
+        if (db.prepare('SELECT id FROM auth_accounts WHERE portal=? AND email=? COLLATE NOCASE').get(input.portal,email)) fail('An account with this email address already exists', 409);
         const id = `AUTH-${randomUUID()}`;
         run('INSERT INTO auth_accounts(id,email,name,employee_id,portal,role,vendor,client,branch_code,admin,status,created_at,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', id, email, name, employeeId, input.portal, input.role, input.portal === 'ubl' ? '' : COMPANY, input.portal === 'ubl' ? 'UBL' : '', branchCode, admin ? 1 : 0, 'invited', timestamp(), manager.id);
         const invitation = issueInvitation(id, 'activate');
